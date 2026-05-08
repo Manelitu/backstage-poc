@@ -7,7 +7,7 @@
  */
 
 import { createBackend } from '@backstage/backend-defaults';
-import { customAuth } from './resolvers/CustomResolver';
+// import { customAuth } from './resolvers/CustomResolver';
 
 const backend = createBackend();
 

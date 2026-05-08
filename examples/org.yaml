@@ -1,17 +1,142 @@
 ---
-# https://backstage.io/docs/features/software-catalog/descriptor-format#kind-user
+# DOMAIN: agrupa sistemas relacionados a um negócio/área
+# Relações geradas: ownerOf (manelitu → domain), hasPart (domain → systems)
 apiVersion: backstage.io/v1alpha1
-kind: User
+kind: Domain
 metadata:
-  name: guest
+  name: backstage-poc-domain
+  description: Domínio principal do POC Backstage
 spec:
-  memberOf: [guests]
+  owner: group:default/engenharia
+
 ---
-# https://backstage.io/docs/features/software-catalog/descriptor-format#kind-group
+# SYSTEM: agrupa componentes e APIs de uma solução
+# Relações geradas: ownerOf (engenharia → system), partOf (system → domain), hasPart (system → components/apis)
+apiVersion: backstage.io/v1alpha1
+kind: System
+metadata:
+  name: backstage-poc-system
+  description: Sistema do portal interno de desenvolvedores
+spec:
+  owner: group:default/engenharia
+  domain: backstage-poc-domain
+
+---
+# GRUPO RAIZ: departamento de tecnologia (sem parent = raiz da hierarquia)
+# Relações geradas: parentOf (tech → engenharia, platform), hasMember (tech → manelitu)
+apiVersion: backstage.io/v1alpha1
+kind: Group
+metadata:
+  name: tecnologia
+  description: Departamento de Tecnologia
+spec:
+  type: department
+  profile:
+    displayName: Tecnologia
+  children: [engenharia, platform]
+  members: []
+
+---
+# GRUPO FILHO: time de engenharia
+# Relações geradas: childOf (engenharia → tecnologia), parentOf (engenharia → backend, frontend), hasMember (engenharia → manelitu)
+apiVersion: backstage.io/v1alpha1
+kind: Group
+metadata:
+  name: engenharia
+  description: Time de Engenharia de Software
+spec:
+  type: team
+  profile:
+    displayName: Engenharia
+    email: engenharia@sunne.com.br
+  parent: tecnologia
+  children: [backend, frontend]
+  members: [manelitu]
+
+---
+# GRUPO FILHO: time de platform/infra
+# Relações geradas: childOf (platform → tecnologia), hasMember (platform → guest)
+apiVersion: backstage.io/v1alpha1
+kind: Group
+metadata:
+  name: platform
+  description: Time de Platform e Infraestrutura
+spec:
+  type: team
+  profile:
+    displayName: Platform
+    email: platform@sunne.com.br
+  parent: tecnologia
+  children: []
+  members: [guest]
+
+---
+# SUBGRUPOS de engenharia
+apiVersion: backstage.io/v1alpha1
+kind: Group
+metadata:
+  name: backend
+  description: Subtime de Backend
+spec:
+  type: team
+  profile:
+    displayName: Backend
+  parent: engenharia
+  children: []
+  members: [manelitu]
+
+---
+apiVersion: backstage.io/v1alpha1
+kind: Group
+metadata:
+  name: frontend
+  description: Subtime de Frontend
+spec:
+  type: team
+  profile:
+    displayName: Frontend
+  parent: engenharia
+  children: []
+  members: []
+
+---
+# GRUPO legado (mantido para compatibilidade com entities.yaml)
 apiVersion: backstage.io/v1alpha1
 kind: Group
 metadata:
   name: guests
+  description: Grupo de acesso convidado
 spec:
   type: team
+  profile:
+    displayName: Guests
   children: []
+  members: [guest, manelitu]
+
+---
+# USUÁRIO principal
+# Relações geradas: memberOf → [engenharia, backend, guests]
+# O Backstage cruza com spec.members dos grupos também
+apiVersion: backstage.io/v1alpha1
+kind: User
+metadata:
+  name: manelitu
+  description: Engenheiro principal do POC
+spec:
+  profile:
+    displayName: Manel
+    email: manelito@sunne.com.br
+    picture: https://avatars.githubusercontent.com/manelitu
+  memberOf: [engenharia, backend, guests]
+
+---
+# USUÁRIO convidado (usado pelo provider guest para testes locais)
+apiVersion: backstage.io/v1alpha1
+kind: User
+metadata:
+  name: guest
+  description: Usuário convidado para ambiente de desenvolvimento
+spec:
+  profile:
+    displayName: Guest
+  memberOf: [guests, platform]
