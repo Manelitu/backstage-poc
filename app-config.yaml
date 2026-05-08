@@ -109,7 +109,7 @@ catalog:
     entityFilename: catalog-info.yaml
     pullRequestBranchName: backstage-integration
   rules:
-    - allow: [Component, System, API, Resource, Location, Group, User, Template]
+    - allow: [Component, System, API, Resource, Domain, Location, Group, User, Template]
   locations:
     # Local example data, file locations are relative to the backend process, typically `packages/backend`
     - type: file
@@ -125,11 +125,19 @@ catalog:
     - type: file
       target: ../../examples/org.yaml
       rules:
-        - allow: [User, Group]
+        - allow: [User, Group, Domain, System]
 
     # backstage-api-test component from GitHub
     - type: url
       target: https://github.com/Manelitu/backstage-api-test/blob/main/catalog-info.yaml
+
+    # backstage-poc-domain component from GitHub
+    - type: url
+      target: https://github.com/Manelitu/backstage-poc-domain/blob/main/catalog-info.yaml
+
+    # backstage-poc-system component from GitHub
+    - type: url
+      target: https://github.com/Manelitu/backstage-poc-system/blob/main/catalog-info.yaml
 
     ## Uncomment these lines to add more example data
     # - type: url

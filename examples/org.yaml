@@ -1,4 +1,19 @@
 ---
+apiVersion: backstage.io/v1alpha1
+kind: Domain
+metadata:
+  name: backstage-poc-domain
+spec:
+  owner: user:default/manelitu
+---
+apiVersion: backstage.io/v1alpha1
+kind: System
+metadata:
+  name: backstage-poc-system
+spec:
+  owner: user:default/manelitu
+  domain: backstage-poc-domain
+---
 # https://backstage.io/docs/features/software-catalog/descriptor-format#kind-user
 apiVersion: backstage.io/v1alpha1
 kind: User
