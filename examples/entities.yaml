@@ -1,33 +1,68 @@
 ---
-# https://backstage.io/docs/features/software-catalog/descriptor-format#kind-system
+# SYSTEM secundário (para exemplos/sandbox)
 apiVersion: backstage.io/v1alpha1
 kind: System
 metadata:
   name: examples
+  description: Sistema de exemplos e sandbox
 spec:
-  owner: guests
+  owner: group:default/guests
+  domain: backstage-poc-domain
+
 ---
-# https://backstage.io/docs/features/software-catalog/descriptor-format#kind-component
+# COMPONENT: website principal do POC
+# Relações geradas:
+#   ownedBy → engenharia
+#   partOf → backstage-poc-system
+#   providesApi → backstage-internal-api
+#   dependsOn → resource:default/backstage-db
 apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
   name: example-website
+  description: Frontend do sistema de exemplos
+  tags:
+    - frontend
+    - react
 spec:
   type: website
   lifecycle: experimental
-  owner: guests
+  owner: group:default/guests
   system: examples
   providesApis: [example-grpc-api]
+  dependsOn:
+    - component:default/example-backend
+
 ---
-# https://backstage.io/docs/features/software-catalog/descriptor-format#kind-api
+# COMPONENT: backend de exemplo
+# Relações: ownedBy → backend, partOf → examples, providesApi → example-grpc-api
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: example-backend
+  description: Backend do sistema de exemplos
+  tags:
+    - backend
+    - nodejs
+spec:
+  type: service
+  lifecycle: experimental
+  owner: group:default/backend
+  system: examples
+  providesApis: [example-grpc-api]
+
+---
+# API exposta pelo exemplo
+# Relações: ownedBy → guests, partOf → examples, apiProvidedBy → example-website (gerado pelo providesApis do component)
 apiVersion: backstage.io/v1alpha1
 kind: API
 metadata:
   name: example-grpc-api
+  description: API gRPC de exemplo
 spec:
   type: grpc
   lifecycle: experimental
-  owner: guests
+  owner: group:default/backend
   system: examples
   definition: |
     syntax = "proto3";

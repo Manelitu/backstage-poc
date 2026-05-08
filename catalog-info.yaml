@@ -11,3 +11,4 @@ spec:
   type: website
   owner: user:default/manelitu
   lifecycle: experimental
+  system: backstage-poc-system
