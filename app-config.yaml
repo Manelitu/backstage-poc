@@ -45,18 +45,21 @@ backend:
   database:
     client: better-sqlite3
     connection: ':memory:'
-  # Routes backend-to-backend calls to the correct instance.
-  # backend-catalog (port 7007) uses this to find backend-auxiliar (port 7008).
+  # Routes backend-to-backend calls to the correct feature backend (dev).
   discovery:
     endpoints:
       - target: 'http://localhost:7008/api/{{pluginId}}'
-        plugins:
-          - techdocs
-          - scaffolder
-          - kubernetes
-          - notifications
-          - signals
-          - mcp-actions
+        plugins: [catalog, auth, permission]
+      - target: 'http://localhost:7009/api/{{pluginId}}'
+        plugins: [search]
+      - target: 'http://localhost:7010/api/{{pluginId}}'
+        plugins: [scaffolder]
+      - target: 'http://localhost:7011/api/{{pluginId}}'
+        plugins: [techdocs]
+      - target: 'http://localhost:7012/api/{{pluginId}}'
+        plugins: [kubernetes]
+      - target: 'http://localhost:7013/api/{{pluginId}}'
+        plugins: [notifications, signals, mcp-actions]
   # see https://backstage.io/docs/ai/mcp-actions#actions-configuration for more details
   actions:
     pluginSources:

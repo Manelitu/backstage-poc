@@ -4,7 +4,10 @@
       "Bash(Get-ChildItem -Path . -Recurse -Include \"*.yaml\", \"*.yml\")",
       "Bash(Select-Object -ExpandProperty FullName)",
       "Bash(Sort-Object)",
-      "WebFetch(domain:backstage.io)"
+      "WebFetch(domain:backstage.io)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)"
     ]
   }
 }
