@@ -2,32 +2,10 @@ import { createBackend } from '@backstage/backend-defaults';
 
 const backend = createBackend();
 
-// app & routing
+// Serves the frontend SPA and handles generic proxy endpoints.
+// All feature plugins (catalog, auth, search, scaffolder, techdocs,
+// kubernetes, notifications) run in their own backend packages.
 backend.add(import('@backstage/plugin-app-backend'));
 backend.add(import('@backstage/plugin-proxy-backend'));
-
-// catalog
-backend.add(import('@backstage/plugin-catalog-backend'));
-backend.add(
-  import('@backstage/plugin-catalog-backend-module-scaffolder-entity-model'),
-);
-backend.add(import('@backstage/plugin-catalog-backend-module-logs'));
-
-// auth
-backend.add(import('@backstage/plugin-auth-backend'));
-backend.add(import('@backstage/plugin-auth-backend-module-guest-provider'));
-backend.add(import('@backstage/plugin-auth-backend-module-github-provider'));
-
-// permissions
-backend.add(import('@backstage/plugin-permission-backend'));
-backend.add(
-  import('@backstage/plugin-permission-backend-module-allow-all-policy'),
-);
-
-// search
-backend.add(import('@backstage/plugin-search-backend'));
-backend.add(import('@backstage/plugin-search-backend-module-pg'));
-backend.add(import('@backstage/plugin-search-backend-module-catalog'));
-backend.add(import('@backstage/plugin-search-backend-module-techdocs'));
 
 backend.start();
