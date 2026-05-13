@@ -7,9 +7,13 @@
   },
   "scripts": {
     "start": "backstage-cli repo start",
+    "start:auxiliar": "yarn workspace backend-auxiliar start --config ../../app-config.yaml --config ../../app-config.auxiliar.yaml",
     "build:backend": "yarn workspace backend build",
+    "build:backend-auxiliar": "yarn workspace backend-auxiliar build",
+    "build:backends": "yarn workspaces foreach --include backend --include backend-auxiliar run build",
     "build:all": "backstage-cli repo build --all",
     "build-image": "yarn workspace backend build-image",
+    "build-image:auxiliar": "yarn workspace backend-auxiliar build-image",
     "tsc": "tsc",
     "tsc:full": "tsc --skipLibCheck false --incremental false",
     "clean": "backstage-cli repo clean",

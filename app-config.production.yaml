@@ -28,6 +28,20 @@ backend:
       #   ca: # if you have a CA file and want to verify it you can uncomment this section
       #     $file: <file-path>/ca/server.crt
 
+  # Server-to-server discovery: backend-catalog routes calls to backend-auxiliar.
+  # BACKSTAGE_AUXILIAR_URL should be the internal cluster URL of the auxiliar service,
+  # e.g. http://backstage-auxiliar:7007 inside Kubernetes.
+  discovery:
+    endpoints:
+      - target: '${BACKSTAGE_AUXILIAR_URL}/api/{{pluginId}}'
+        plugins:
+          - techdocs
+          - scaffolder
+          - kubernetes
+          - notifications
+          - signals
+          - mcp-actions
+
 auth:
   providers:
     guest: {}
