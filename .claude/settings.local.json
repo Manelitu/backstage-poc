@@ -10,7 +10,10 @@
       "Bash(git push *)",
       "Bash(git rm *)",
       "Bash(yarn workspace *)",
-      "Bash(Remove-Item *)"
+      "Bash(Remove-Item *)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Bradesco Seguros\\\\Workspace\\\\backstage-poc\\\\packages\" -Directory)",
+      "Bash(Select-Object -ExpandProperty Name)",
+      "Bash(Test-Path *)"
     ]
   }
 }
