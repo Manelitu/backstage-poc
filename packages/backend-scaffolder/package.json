@@ -22,6 +22,7 @@
     "@backstage/plugin-scaffolder-backend": "^3.4.0",
     "@backstage/plugin-scaffolder-backend-module-github": "^0.9.8",
     "@backstage/plugin-scaffolder-backend-module-notifications": "^0.1.21",
+    "backend-common": "workspace:*",
     "better-sqlite3": "^12.0.0",
     "node-gyp": "^10.0.0",
     "pg": "^8.20.0"

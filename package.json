@@ -7,7 +7,9 @@
   },
   "scripts": {
     "start": "backstage-cli repo start",
-    "start:all": "concurrently --kill-others-on-fail --prefix-colors \"bgBlue,bgGreen,bgYellow,bgMagenta,bgCyan,bgRed,bgWhite\" -n \"catalog,techdocs,k8s,notif,search,scaffolder,frontend\" \"yarn start:catalog\" \"yarn start:techdocs\" \"yarn start:kubernetes\" \"yarn start:notifications\" \"wait-on tcp:7008 && yarn start:search\" \"wait-on tcp:7008 && yarn start:scaffolder\" \"wait-on tcp:7008 tcp:7009 tcp:7010 tcp:7011 tcp:7012 tcp:7013 && yarn start\"",
+    "start:all": "concurrently --kill-others-on-fail --prefix-colors \"bgBlue,bgGreen,bgYellow,bgMagenta,bgCyan,bgRed,bgWhite,bgGray\" -n \"catalog,techdocs,k8s,notif,search,scaffolder,proxy,frontend\" \"yarn start:catalog\" \"yarn start:techdocs\" \"yarn start:kubernetes\" \"yarn start:notifications\" \"wait-on tcp:7008 && yarn start:search\" \"wait-on tcp:7008 && yarn start:scaffolder\" \"wait-on tcp:7008 tcp:7009 tcp:7010 tcp:7011 tcp:7012 tcp:7013 && yarn start:proxy\" \"wait-on tcp:7008 tcp:7009 tcp:7010 tcp:7011 tcp:7012 tcp:7013 && yarn start:app\"",
+    "start:proxy": "yarn workspace backend start",
+    "start:app": "yarn workspace app start",
     "start:catalog": "yarn workspace backend-catalog start",
     "start:search": "yarn workspace backend-search start",
     "start:scaffolder": "yarn workspace backend-scaffolder start",
@@ -57,18 +59,18 @@
   ],
   "devDependencies": {
     "@backstage/cli": "^0.36.1",
-    "concurrently": "^9.0.0",
-    "wait-on": "^8.0.0",
     "@backstage/cli-defaults": "^0.1.1",
     "@backstage/e2e-test-utils": "^0.1.2",
     "@jest/environment-jsdom-abstract": "^30.0.0",
     "@playwright/test": "^1.32.3",
     "@types/jest": "^30.0.0",
+    "concurrently": "^9.0.0",
     "jest": "^30.2.0",
     "jsdom": "^27.1.0",
     "node-gyp": "^10.0.0",
     "prettier": "^2.3.2",
-    "typescript": "~5.8.0"
+    "typescript": "~5.8.0",
+    "wait-on": "^8.0.0"
   },
   "resolutions": {
     "@types/react": "^18",
