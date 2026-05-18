@@ -180,48 +180,54 @@ A divisão não precisa ser um backend por plugin — o objetivo é agrupar por 
 
 ### Agrupamento recomendado
 
+O agrupamento segue dois critérios simultâneos: **afinidade de carga** e **isolamento de segurança** (trust model do Backstage).
+
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│  backend-gateway (porta 7007)                                   │
+│  backend (porta 7007)                                           │
 │  Responsabilidade: roteamento + SPA                             │
 │  Plugins: plugin-gateway-backend, plugin-app-backend            │
 │  Escala: 2–3 réplicas (stateless, leve)                        │
 └─────────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────────┐
-│  backend-catalog (porta 7008)                                   │
-│  Responsabilidade: identidade, acesso, entidades                │
-│  Plugins: catalog, auth, permission                             │
-│  Escala: 2–4 réplicas (carga alta e constante)                 │
-│  RAM estimada por pod: 600–900 MB                               │
+│  backend-auth (porta 7008)  ← isolado pelo trust model          │
+│  Responsabilidade: autenticação e sessões                       │
+│  Plugins: auth                                                  │
+│  Escala: 2–3 réplicas                                          │
+│  RAM estimada por pod: 150–300 MB                               │
+│  Por que isolado: trust model exige banco separado para         │
+│  garantir que nenhum outro plugin acessa tokens/sessões         │
 └─────────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────────┐
-│  backend-platform (porta 7009)                                  │
-│  Responsabilidade: ferramentas de plataforma                    │
-│  Plugins: techdocs, kubernetes, dynatrace, outros plugins leves │
-│  Escala: 1–2 réplicas (carga baixa, esporádica)                │
+│  backend-core (porta 7009)                                      │
+│  Responsabilidade: entidades, acesso e busca                    │
+│  Plugins: catalog, permission, search                           │
+│  Escala: 2–4 réplicas (carga alta e constante)                 │
+│  RAM estimada por pod: 600–900 MB                               │
+│  Por que juntos: permission depende do catalog; search          │
+│  indexa o catalog — separar gera HTTP de alta frequência        │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│  backend-content (porta 7010)                                   │
+│  Responsabilidade: geração de conteúdo                          │
+│  Plugins: scaffolder, techdocs                                  │
+│  Escala: 1–3 réplicas (picos de I/O durante templates/docs)    │
 │  RAM estimada por pod: 400–700 MB                               │
 └─────────────────────────────────────────────────────────────────┘
 
 ┌─────────────────────────────────────────────────────────────────┐
-│  backend-search (porta 7010)                                    │
-│  Responsabilidade: indexação e busca full-text                  │
-│  Plugins: search, módulos de indexação                          │
-│  Escala: 1–3 réplicas (picos durante indexação)                │
-│  RAM estimada por pod: 300–600 MB                               │
-└─────────────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────────────┐
-│  backend-delivery (porta 7011)                                  │
-│  Responsabilidade: criação e entrega de serviços                │
-│  Plugins: scaffolder, notifications, signals                    │
-│  Escala: 1–2 réplicas (picos durante execução de templates)    │
-│  RAM estimada por pod: 300–500 MB                               │
+│  backend-aux (porta 7011)                                       │
+│  Responsabilidade: integrações e comunicação                    │
+│  Plugins: kubernetes, notifications, signals, mcp-actions       │
+│  Escala: 1–2 réplicas (baixo tráfego)                          │
+│  RAM estimada por pod: 250–450 MB                               │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-> **Princípio:** o catalog é o plugin mais requisitado de qualquer instalação Backstage. Ele deve estar em seu próprio backend com capacidade de escala independente. TechDocs tem picos altos mas esporádicos — pode compartilhar backend com plugins mais leves.
+> **Princípio:** auth isolado é exigência do trust model — qualquer plugin no mesmo processo tem acesso irrestrito ao banco do outro. Catalog+permission+search juntos eliminam as chamadas HTTP de maior frequência do sistema.
 
 ---
 
@@ -238,22 +244,22 @@ A divisão não precisa ser um backend por plugin — o objetivo é agrupar por 
                     │   Ingress Controller       │
                     │   (nginx / Traefik / ALB)  │
                     │                            │
-                    │  /api/catalog/*  ──────────┼──► backend-catalog  :7008
-                    │  /api/auth/*     ──────────┼──► backend-catalog  :7008
-                    │  /api/permission/* ────────┼──► backend-catalog  :7008
-                    │  /api/search/*   ──────────┼──► backend-search   :7009
-                    │  /api/scaffolder/* ────────┼──► backend-delivery :7010
-                    │  /api/notifications/* ─────┼──► backend-delivery :7010
-                    │  /api/techdocs/* ──────────┼──► backend-platform :7011
-                    │  /api/kubernetes/* ────────┼──► backend-platform :7011
-                    │  /*              ──────────┼──► backend-gateway  :7007
+                    │  /api/auth/*        ───────┼──► backend-auth     :7008
+                    │  /api/catalog/*  ──────────┼──► backend-core     :7009
+                    │  /api/permission/* ────────┼──► backend-core     :7009
+                    │  /api/search/*   ──────────┼──► backend-core     :7009
+                    │  /api/scaffolder/* ────────┼──► backend-content  :7010
+                    │  /api/techdocs/* ──────────┼──► backend-content  :7010
+                    │  /api/kubernetes/* ────────┼──► backend-aux      :7011
+                    │  /api/notifications/* ─────┼──► backend-aux      :7011
+                    │  /*              ──────────┼──► backend (proxy)  :7007
                     └───────────────────────────┘
                                   │
               ┌───────────────────┼───────────────────┐
               │                   │                   │
     ┌─────────▼──────┐  ┌────────▼───────┐  ┌────────▼───────┐
-    │ backend-catalog │  │ backend-search │  │backend-platform│
-    │  (2–4 pods)    │  │   (1–3 pods)   │  │  (1–2 pods)    │
+    │  backend-auth  │  │  backend-core  │  │backend-content │
+    │  (2–3 pods)    │  │  (2–4 pods)    │  │  (1–3 pods)    │
     └────────┬───────┘  └────────┬───────┘  └────────┬───────┘
              │                   │                   │
              └───────────────────┼───────────────────┘
@@ -336,7 +342,7 @@ Resultado: chamada para si mesmo → 404
 
 ### A solução: DiscoveryService customizado
 
-O `multiBackendDiscovery` (em `packages/backend-common`) lê `backend.discovery.endpoints` do config e devolve a URL correta por plugin:
+O `multiBackendDiscovery` (em `packages/backend-common`) lê `backend.discovery.endpoints` do config e mantém dois Maps separados — um para URLs internas (backend-to-backend) e outro para URLs externas (frontend/browser):
 
 ```typescript
 export const multiBackendDiscovery = createServiceFactory({
@@ -344,39 +350,57 @@ export const multiBackendDiscovery = createServiceFactory({
   deps: { config: coreServices.rootConfig },
   async factory({ config }) {
     const baseUrl = config.getString('backend.baseUrl');
-    const pluginUrls = new Map<string, string>();
+    const internalUrls = new Map<string, string>();
+    const externalUrls = new Map<string, string>();
 
     for (const ep of config.getOptionalConfigArray('backend.discovery.endpoints') ?? []) {
       const target = ep.getString('target');
+      // externalTarget é opcional — cai no target quando não definido (ex: dev local)
+      const externalTarget = ep.getOptionalString('externalTarget') ?? target;
       for (const pluginId of ep.getStringArray('plugins')) {
-        pluginUrls.set(pluginId, target.replace(/\{\{pluginId\}\}/g, pluginId));
+        internalUrls.set(pluginId, target.replace(/\{\{pluginId\}\}/g, pluginId));
+        externalUrls.set(pluginId, externalTarget.replace(/\{\{pluginId\}\}/g, pluginId));
       }
     }
 
     return {
-      getBaseUrl: async (id) => pluginUrls.get(id) ?? `${baseUrl}/api/${id}`,
-      getExternalBaseUrl: async (id) => pluginUrls.get(id) ?? `${baseUrl}/api/${id}`,
+      async getBaseUrl(pluginId: string): Promise<string> {
+        return internalUrls.get(pluginId) ?? `${baseUrl}/api/${pluginId}`;
+      },
+      async getExternalBaseUrl(pluginId: string): Promise<string> {
+        return externalUrls.get(pluginId) ?? `${baseUrl}/api/${pluginId}`;
+      },
     };
   },
 });
 ```
 
+**Por que dois Maps?**
+- `getBaseUrl` → URL **interna** para chamadas backend-to-backend e assinatura de tokens de serviço. Em K8s, aponta para o DNS do Service interno (`http://backstage-auth:7008`).
+- `getExternalBaseUrl` → URL **externa** para o browser. Em produção, aponta para o ingress público (`https://backstage.empresa.com`).
+
+Em dev local, `externalTarget` não é definido e ambos retornam o mesmo valor. Em produção com K8s:
+
 ```yaml
-# app-config.yaml
+# app-config.production.yaml
 backend:
   discovery:
     endpoints:
-      - target: 'http://backend-catalog-svc:7008/api/{{pluginId}}'
-        plugins: [catalog, auth, permission]
-      - target: 'http://backend-search-svc:7009/api/{{pluginId}}'
-        plugins: [search]
-      - target: 'http://backend-delivery-svc:7010/api/{{pluginId}}'
-        plugins: [scaffolder, notifications, signals]
-      - target: 'http://backend-platform-svc:7011/api/{{pluginId}}'
-        plugins: [techdocs, kubernetes]
+      - target: 'http://backend-auth-svc:7008/api/{{pluginId}}'
+        externalTarget: 'https://backstage.empresa.com/api/{{pluginId}}'
+        plugins: [auth]
+      - target: 'http://backend-core-svc:7009/api/{{pluginId}}'
+        externalTarget: 'https://backstage.empresa.com/api/{{pluginId}}'
+        plugins: [catalog, permission, search]
+      - target: 'http://backend-content-svc:7010/api/{{pluginId}}'
+        externalTarget: 'https://backstage.empresa.com/api/{{pluginId}}'
+        plugins: [scaffolder, techdocs]
+      - target: 'http://backend-aux-svc:7011/api/{{pluginId}}'
+        externalTarget: 'https://backstage.empresa.com/api/{{pluginId}}'
+        plugins: [kubernetes, notifications, signals, mcp-actions]
 ```
 
-Em produção, os targets usam os nomes dos **Kubernetes Services** (DNS interno do cluster), não `localhost`.
+Em produção, os `target` usam os nomes dos **Kubernetes Services** (DNS interno do cluster), não `localhost`.
 
 ---
 
@@ -525,30 +549,48 @@ spec:
     - host: backstage.empresa.com.br
       http:
         paths:
-          # Catalog, auth, permission → backend-catalog
-          - path: /api/(catalog|auth|permission)(/|$)(.*)
+          # Auth → backend-auth (isolado pelo trust model)
+          - path: /api/auth(/|$)(.*)
             pathType: ImplementationSpecific
             backend:
               service:
-                name: backend-catalog-svc
+                name: backend-auth-svc
                 port:
                   number: 7008
 
-          # Search → backend-search
-          - path: /api/search(/|$)(.*)
+          # Catalog, permission, search → backend-core
+          - path: /api/(catalog|permission|search)(/|$)(.*)
             pathType: ImplementationSpecific
             backend:
               service:
-                name: backend-search-svc
+                name: backend-core-svc
                 port:
                   number: 7009
 
-          # Todo o restante → gateway
+          # Scaffolder, techdocs → backend-content
+          - path: /api/(scaffolder|techdocs)(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: backend-content-svc
+                port:
+                  number: 7010
+
+          # Kubernetes, notifications, signals → backend-aux
+          - path: /api/(kubernetes|notifications|signals|mcp-actions)(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: backend-aux-svc
+                port:
+                  number: 7011
+
+          # Todo o restante → proxy (SPA + fallback)
           - path: /
             pathType: Prefix
             backend:
               service:
-                name: backend-gateway-svc
+                name: backend-svc
                 port:
                   number: 7007
 ```
@@ -559,11 +601,11 @@ spec:
 
 | Backend | CPU request | CPU limit | RAM request | RAM limit | Min pods | Max pods |
 |---------|-------------|-----------|-------------|-----------|----------|----------|
-| gateway | 100m | 300m | 128Mi | 256Mi | 2 | 4 |
-| catalog | 250m | 500m | 512Mi | 1Gi | 2 | 6 |
-| search | 200m | 400m | 384Mi | 768Mi | 1 | 4 |
-| platform | 150m | 300m | 256Mi | 512Mi | 1 | 3 |
-| delivery | 150m | 400m | 256Mi | 512Mi | 1 | 3 |
+| backend (proxy) | 100m | 300m | 128Mi | 256Mi | 2 | 4 |
+| backend-auth | 100m | 250m | 128Mi | 256Mi | 2 | 4 |
+| backend-core | 250m | 500m | 512Mi | 1Gi | 2 | 6 |
+| backend-content | 150m | 400m | 384Mi | 768Mi | 1 | 4 |
+| backend-aux | 100m | 250m | 256Mi | 512Mi | 1 | 3 |
 
 ---
 
@@ -576,15 +618,15 @@ spec:
 - Medir o tempo de build atual e o pico de RAM da pipeline
 - Estabelecer baselines de latência entre plugins
 
-### Fase 2 — Extrair o plugin mais crítico *(risco baixo)*
+### Fase 2 — Extrair auth primeiro *(risco baixo, ganho de segurança imediato)*
 
-Começar com o catalog, que é o mais demandado e o que mais contribui para o tamanho do processo:
+Começar por auth, pois o trust model exige isolamento e é o menor backend — menor risco de migração:
 
-1. Criar `packages/backend-catalog` com apenas `plugin-catalog-backend`, `plugin-auth-backend` e `plugin-permission-backend`
-2. Configurar `DiscoveryService` customizado
-3. Configurar o Ingress para rotear `/api/catalog`, `/api/auth` e `/api/permission` para o novo container
-4. Remover esses plugins do monólito após validação
-5. Medir redução de memória e tempo de build
+1. Criar `packages/backend-auth` com apenas `plugin-auth-backend` e seus módulos
+2. Configurar `DiscoveryService` customizado com suporte a `externalTarget`
+3. Configurar o Ingress para rotear `/api/auth` para o novo container
+4. Remover auth do monólito após validação
+5. Medir que o banco de auth está efetivamente isolado
 
 ### Fase 3 — Extrair plugins restantes *(iterativo)*
 
