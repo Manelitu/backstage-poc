@@ -49,17 +49,13 @@ backend:
   discovery:
     endpoints:
       - target: 'http://localhost:7008/api/{{pluginId}}'
-        plugins: [catalog, auth, permission]
+        plugins: [auth]
       - target: 'http://localhost:7009/api/{{pluginId}}'
-        plugins: [search]
+        plugins: [catalog, permission, search]
       - target: 'http://localhost:7010/api/{{pluginId}}'
-        plugins: [scaffolder]
+        plugins: [scaffolder, techdocs]
       - target: 'http://localhost:7011/api/{{pluginId}}'
-        plugins: [techdocs]
-      - target: 'http://localhost:7012/api/{{pluginId}}'
-        plugins: [kubernetes]
-      - target: 'http://localhost:7013/api/{{pluginId}}'
-        plugins: [notifications, signals, mcp-actions]
+        plugins: [kubernetes, notifications, signals, mcp-actions]
   # see https://backstage.io/docs/ai/mcp-actions#actions-configuration for more details
   actions:
     pluginSources:

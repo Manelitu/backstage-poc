@@ -1,8 +1,0 @@
-backend:
-  baseUrl: http://localhost:7013
-  listen:
-    port: 7013
-  cors:
-    origin: http://localhost:3000
-    methods: [GET, HEAD, PATCH, POST, PUT, DELETE]
-    credentials: true

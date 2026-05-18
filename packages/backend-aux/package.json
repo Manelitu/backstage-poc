@@ -1,5 +1,5 @@
 {
-  "name": "backend-scaffolder",
+  "name": "backend-aux",
   "version": "0.0.0",
   "main": "dist/index.cjs.js",
   "types": "src/index.ts",
@@ -13,15 +13,16 @@
     "lint": "backstage-cli package lint",
     "test": "backstage-cli package test",
     "clean": "backstage-cli package clean",
-    "build-image": "docker build ../.. -f packages/backend-scaffolder/Dockerfile --tag backstage-scaffolder"
+    "build-image": "docker build ../.. -f packages/backend-aux/Dockerfile --tag backstage-aux"
   },
   "dependencies": {
     "@backstage/backend-defaults": "^0.17.0",
     "@backstage/backend-plugin-api": "^1.9.0",
     "@backstage/config": "^1.3.7",
-    "@backstage/plugin-scaffolder-backend": "^3.4.0",
-    "@backstage/plugin-scaffolder-backend-module-github": "^0.9.8",
-    "@backstage/plugin-scaffolder-backend-module-notifications": "^0.1.21",
+    "@backstage/plugin-kubernetes-backend": "^0.21.3",
+    "@backstage/plugin-mcp-actions-backend": "^0.1.12",
+    "@backstage/plugin-notifications-backend": "^0.6.4",
+    "@backstage/plugin-signals-backend": "^0.3.14",
     "backend-common": "workspace:*",
     "better-sqlite3": "^12.0.0",
     "node-gyp": "^10.0.0",

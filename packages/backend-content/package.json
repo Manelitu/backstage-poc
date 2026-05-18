@@ -1,5 +1,5 @@
 {
-  "name": "backend-techdocs",
+  "name": "backend-content",
   "version": "0.0.0",
   "main": "dist/index.cjs.js",
   "types": "src/index.ts",
@@ -13,12 +13,15 @@
     "lint": "backstage-cli package lint",
     "test": "backstage-cli package test",
     "clean": "backstage-cli package clean",
-    "build-image": "docker build ../.. -f packages/backend-techdocs/Dockerfile --tag backstage-techdocs"
+    "build-image": "docker build ../.. -f packages/backend-content/Dockerfile --tag backstage-content"
   },
   "dependencies": {
     "@backstage/backend-defaults": "^0.17.0",
     "@backstage/backend-plugin-api": "^1.9.0",
     "@backstage/config": "^1.3.7",
+    "@backstage/plugin-scaffolder-backend": "^3.4.0",
+    "@backstage/plugin-scaffolder-backend-module-github": "^0.9.8",
+    "@backstage/plugin-scaffolder-backend-module-notifications": "^0.1.21",
     "@backstage/plugin-techdocs-backend": "^2.1.7",
     "backend-common": "workspace:*",
     "better-sqlite3": "^12.0.0",

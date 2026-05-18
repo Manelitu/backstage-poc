@@ -12,15 +12,16 @@ backend.add(
 );
 backend.add(import('@backstage/plugin-catalog-backend-module-logs'));
 
-// auth
-backend.add(import('@backstage/plugin-auth-backend'));
-backend.add(import('@backstage/plugin-auth-backend-module-guest-provider'));
-backend.add(import('@backstage/plugin-auth-backend-module-github-provider'));
-
 // permissions
 backend.add(import('@backstage/plugin-permission-backend'));
 backend.add(
   import('@backstage/plugin-permission-backend-module-allow-all-policy'),
 );
+
+// search
+backend.add(import('@backstage/plugin-search-backend'));
+backend.add(import('@backstage/plugin-search-backend-module-pg'));
+backend.add(import('@backstage/plugin-search-backend-module-catalog'));
+backend.add(import('@backstage/plugin-search-backend-module-techdocs'));
 
 backend.start();

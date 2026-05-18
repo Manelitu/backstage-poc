@@ -29,21 +29,22 @@ backend:
       #     $file: <file-path>/ca/server.crt
 
   # Server-to-server discovery: routes calls to the correct feature backend.
-  # Each *_URL should be the internal Kubernetes service URL, e.g. http://backstage-catalog:7007
+  # *_URL vars should be internal Kubernetes service URLs, e.g. http://backstage-auth:7008
+  # externalTarget is optional: set it to route browser traffic through the public ingress.
   discovery:
     endpoints:
-      - target: '${BACKSTAGE_CATALOG_URL}/api/{{pluginId}}'
-        plugins: [catalog, auth, permission]
-      - target: '${BACKSTAGE_SEARCH_URL}/api/{{pluginId}}'
-        plugins: [search]
-      - target: '${BACKSTAGE_SCAFFOLDER_URL}/api/{{pluginId}}'
-        plugins: [scaffolder]
-      - target: '${BACKSTAGE_TECHDOCS_URL}/api/{{pluginId}}'
-        plugins: [techdocs]
-      - target: '${BACKSTAGE_KUBERNETES_URL}/api/{{pluginId}}'
-        plugins: [kubernetes]
-      - target: '${BACKSTAGE_NOTIFICATIONS_URL}/api/{{pluginId}}'
-        plugins: [notifications, signals, mcp-actions]
+      - target: '${BACKSTAGE_AUTH_URL}/api/{{pluginId}}'
+        # externalTarget: '${BACKSTAGE_EXTERNAL_URL}/api/{{pluginId}}'
+        plugins: [auth]
+      - target: '${BACKSTAGE_CORE_URL}/api/{{pluginId}}'
+        # externalTarget: '${BACKSTAGE_EXTERNAL_URL}/api/{{pluginId}}'
+        plugins: [catalog, permission, search]
+      - target: '${BACKSTAGE_CONTENT_URL}/api/{{pluginId}}'
+        # externalTarget: '${BACKSTAGE_EXTERNAL_URL}/api/{{pluginId}}'
+        plugins: [scaffolder, techdocs]
+      - target: '${BACKSTAGE_AUX_URL}/api/{{pluginId}}'
+        # externalTarget: '${BACKSTAGE_EXTERNAL_URL}/api/{{pluginId}}'
+        plugins: [kubernetes, notifications, signals, mcp-actions]
 
 auth:
   providers:
