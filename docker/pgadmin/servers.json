@@ -1,0 +1,14 @@
+{
+  "Servers": {
+    "1": {
+      "Name": "Backstage PostgreSQL",
+      "Group": "Servers",
+      "Host": "postgres",
+      "Port": 5432,
+      "MaintenanceDB": "backstage",
+      "Username": "backstage",
+      "SSLMode": "prefer",
+      "PassFile": ""
+    }
+  }
+}

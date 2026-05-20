@@ -1,0 +1,203 @@
+# docker-compose.yml — Backstage Multi-Backend
+#
+# Sobe PostgreSQL + pgAdmin + cinco backends em uma rede Docker interna.
+#
+# Comandos:
+#   docker compose build                        # constrói todas as imagens
+#   docker compose up                           # sobe tudo
+#   docker compose up postgres pgadmin          # sobe só banco + painel
+#   docker compose up backstage-auth            # sobe só um serviço
+#   docker compose build --build-arg YARN_ENABLE_STRICT_SSL=false  # rede corporativa SSL
+#
+# Variáveis de ambiente — copie .env.example para .env e ajuste os valores:
+#   POSTGRES_USER          (padrão: backstage)
+#   POSTGRES_PASSWORD      (padrão: backstage)
+#   PGADMIN_EMAIL          (padrão: admin@backstage.local)
+#   PGADMIN_PASSWORD       (padrão: admin)
+#   YARN_ENABLE_STRICT_SSL (padrão: true)
+
+services:
+
+  # ── Banco de dados ────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-backstage}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-backstage}
+      POSTGRES_DB: backstage
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-backstage}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ── pgAdmin — interface web para o banco (porta 5050) ─────────────────────
+  # Acesso: http://localhost:5050
+  # Login: PGADMIN_EMAIL / PGADMIN_PASSWORD (veja .env.example)
+  # O servidor "Backstage PostgreSQL" já aparece pré-configurado.
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL:-admin@backstage.local}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin}
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+      - ./docker/pgadmin/servers.json:/pgadmin4/servers.json:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ── Auth (porta 7008) — deve subir primeiro ───────────────────────────────
+  backstage-auth:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: backend-auth
+      args:
+        YARN_ENABLE_STRICT_SSL: ${YARN_ENABLE_STRICT_SSL:-true}
+    image: backstage/auth:local
+    ports:
+      - "7008:7008"
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: ${POSTGRES_USER:-backstage}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-backstage}
+      BACKSTAGE_AUTH_URL: http://backstage-auth:7008
+      BACKSTAGE_CORE_URL: http://backstage-core:7009
+      BACKSTAGE_CONTENT_URL: http://backstage-content:7010
+      BACKSTAGE_AUX_URL: http://backstage-aux:7011
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ── Core: Catalog + Permission + Search (porta 7009) ─────────────────────
+  backstage-core:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: backend-core
+      args:
+        YARN_ENABLE_STRICT_SSL: ${YARN_ENABLE_STRICT_SSL:-true}
+    image: backstage/core:local
+    ports:
+      - "7009:7009"
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: ${POSTGRES_USER:-backstage}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-backstage}
+      BACKSTAGE_AUTH_URL: http://backstage-auth:7008
+      BACKSTAGE_CORE_URL: http://backstage-core:7009
+      BACKSTAGE_CONTENT_URL: http://backstage-content:7010
+      BACKSTAGE_AUX_URL: http://backstage-aux:7011
+    depends_on:
+      postgres:
+        condition: service_healthy
+      backstage-auth:
+        condition: service_started
+    restart: unless-stopped
+
+  # ── Content: Scaffolder + TechDocs (porta 7010) ───────────────────────────
+  backstage-content:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: backend-content
+      args:
+        YARN_ENABLE_STRICT_SSL: ${YARN_ENABLE_STRICT_SSL:-true}
+    image: backstage/content:local
+    ports:
+      - "7010:7010"
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: ${POSTGRES_USER:-backstage}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-backstage}
+      BACKSTAGE_AUTH_URL: http://backstage-auth:7008
+      BACKSTAGE_CORE_URL: http://backstage-core:7009
+      BACKSTAGE_CONTENT_URL: http://backstage-content:7010
+      BACKSTAGE_AUX_URL: http://backstage-aux:7011
+    depends_on:
+      postgres:
+        condition: service_healthy
+      backstage-auth:
+        condition: service_started
+      backstage-core:
+        condition: service_started
+    restart: unless-stopped
+
+  # ── Aux: Kubernetes + Notifications + Signals + MCP (porta 7011) ──────────
+  backstage-aux:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: backend-aux
+      args:
+        YARN_ENABLE_STRICT_SSL: ${YARN_ENABLE_STRICT_SSL:-true}
+    image: backstage/aux:local
+    ports:
+      - "7011:7011"
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: ${POSTGRES_USER:-backstage}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-backstage}
+      BACKSTAGE_AUTH_URL: http://backstage-auth:7008
+      BACKSTAGE_CORE_URL: http://backstage-core:7009
+      BACKSTAGE_CONTENT_URL: http://backstage-content:7010
+      BACKSTAGE_AUX_URL: http://backstage-aux:7011
+    depends_on:
+      postgres:
+        condition: service_healthy
+      backstage-auth:
+        condition: service_started
+      backstage-core:
+        condition: service_started
+    restart: unless-stopped
+
+  # ── Proxy / SPA host (porta 7007) — entrada pública ──────────────────────
+  backstage-proxy:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: backend-proxy
+      args:
+        YARN_ENABLE_STRICT_SSL: ${YARN_ENABLE_STRICT_SSL:-true}
+    image: backstage/proxy:local
+    ports:
+      - "7007:7007"
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: ${POSTGRES_USER:-backstage}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-backstage}
+      BACKSTAGE_AUTH_URL: http://backstage-auth:7008
+      BACKSTAGE_CORE_URL: http://backstage-core:7009
+      BACKSTAGE_CONTENT_URL: http://backstage-content:7010
+      BACKSTAGE_AUX_URL: http://backstage-aux:7011
+    depends_on:
+      backstage-auth:
+        condition: service_started
+      backstage-core:
+        condition: service_started
+      backstage-content:
+        condition: service_started
+      backstage-aux:
+        condition: service_started
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  pgadmin_data:

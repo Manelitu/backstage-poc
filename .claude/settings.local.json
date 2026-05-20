@@ -16,7 +16,11 @@
       "Bash(Test-Path *)",
       "WebSearch",
       "WebFetch(domain:www.npmjs.com)",
-      "Bash(yarn install *)"
+      "Bash(yarn install *)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Bradesco Seguros\\\\Personal\\\\backstage-poc\")",
+      "Bash(Select-Object -Property Name, PSIsContainer)",
+      "Bash(Format-Table -AutoSize)",
+      "PowerShell(wsl --update)"
     ]
   }
 }

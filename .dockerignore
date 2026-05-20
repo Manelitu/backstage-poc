@@ -1,8 +1,29 @@
+# Controle de versão
 .git
+.github
+
+# Cache do Yarn (grande, reinstalado dentro do container)
 .yarn/cache
 .yarn/install-state.gz
+
+# node_modules locais — reinstalados em cada stage
 node_modules
-packages/*/src
 packages/*/node_modules
-plugins
+plugins/*/node_modules
+
+# Artefatos de build locais — recompilados dentro do container
+packages/*/dist
+packages/app/dist
+dist-types
+coverage
+*.tsbuildinfo
+
+# Configs locais com secrets
 *.local.yaml
+.env
+.env.*
+
+# Ferramentas de desenvolvimento
+.vscode
+.idea
+*.log
