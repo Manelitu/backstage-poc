@@ -20,7 +20,9 @@
       "Bash(Get-ChildItem -Path \"C:\\\\Bradesco Seguros\\\\Personal\\\\backstage-poc\")",
       "Bash(Select-Object -Property Name, PSIsContainer)",
       "Bash(Format-Table -AutoSize)",
-      "PowerShell(wsl --update)"
+      "PowerShell(wsl --update)",
+      "Bash(tar tzf *)",
+      "Bash(Get-Content \"C:\\\\Bradesco Seguros\\\\Personal\\\\backstage-poc\\\\.env\")"
     ]
   }
 }

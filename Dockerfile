@@ -75,15 +75,17 @@ COPY --chown=node:node . .
 # 1. Declaration files TypeScript em todo o monorepo
 RUN yarn tsc
 
-# 2. Compila os quatro feature-backends + proxy gateway em paralelo
-RUN yarn build:backends
-
-# 3. Bundle do React SPA — consumido pelo proxy via plugin-app-backend
+# 2. Bundle do React SPA — deve vir antes dos backends porque o bundle.tar.gz
+#    do proxy (backstage-cli) captura packages/app/dist/ no momento do build
 RUN yarn workspace app build
+
+# 3. Compila os backends; o proxy já encontra packages/app/dist/ pronto
+RUN yarn build:backends
 
 # ─────────────────────────────────────────────────────────────────────────────
 # prod-deps — node_modules só com dependências de produção
-#             compartilhado entre todos os runtime stages
+#             Fornece addons nativos (better-sqlite3, pg-native) que não podem
+#             ser bundlados pelo CLI e são externalizados no bundle.tar.gz.
 # ─────────────────────────────────────────────────────────────────────────────
 FROM base AS prod-deps
 
@@ -108,13 +110,20 @@ RUN --mount=type=cache,target=/home/node/.cache/yarn,sharing=locked,uid=1000,gid
 
 # =============================================================================
 # RUNTIME STAGES
-# Cada stage é uma imagem enxuta com apenas o necessário para um backend.
-# Herdam: base (system packages) + prod-deps (node_modules) + builder (dist/).
+#
+# Cada backend é empacotado em bundle.tar.gz pelo backstage-cli.
+# O arquivo contém: dist/index.cjs.js + package.json dos workspaces.
+# Os addons nativos (better-sqlite3) vêm do stage prod-deps.
+#
+# Extração em /app:
+#   tar xzf bundle.tar.gz  →  packages/<name>/dist/index.cjs.js
+#                              packages/<name>/package.json
+#                              package.json  (raiz)
+#                              yarn.lock
 # =============================================================================
 
 # ─────────────────────────────────────────────────────────────────────────────
 # backend-auth — Autenticação  (porta 7008)
-#   Discovery key: auth
 # ─────────────────────────────────────────────────────────────────────────────
 FROM base AS backend-auth
 
@@ -124,15 +133,12 @@ ENV NODE_ENV=production \
 USER node
 WORKDIR /app
 
+# Addons nativos
 COPY --chown=node:node --from=prod-deps /app/node_modules ./node_modules
-COPY --chown=node:node --from=prod-deps /app/package.json ./package.json
 
-# backend-common é bundled pelo CLI; copiamos a fonte como fallback de resolução
-COPY --chown=node:node --from=builder /app/packages/backend-common/package.json ./packages/backend-common/
-COPY --chown=node:node --from=builder /app/packages/backend-common/src           ./packages/backend-common/src
-
-COPY --chown=node:node --from=builder /app/packages/backend-auth/package.json ./packages/backend-auth/
-COPY --chown=node:node --from=builder /app/packages/backend-auth/dist          ./packages/backend-auth/dist
+# Bundle compilado — contém dist/index.cjs.js + package.json dos workspaces
+COPY --chown=node:node --from=builder /app/packages/backend-auth/dist/bundle.tar.gz ./
+RUN tar xzf bundle.tar.gz && rm bundle.tar.gz
 
 # Config em camadas: base → overrides de produção → porta/CORS específicos do backend
 COPY --chown=node:node app-config.yaml app-config.production.yaml ./
@@ -147,7 +153,6 @@ CMD ["node", "packages/backend-auth", \
 
 # ─────────────────────────────────────────────────────────────────────────────
 # backend-core — Catalog + Permission + Search  (porta 7009)
-#   Discovery keys: catalog, permission, search
 # ─────────────────────────────────────────────────────────────────────────────
 FROM base AS backend-core
 
@@ -158,13 +163,9 @@ USER node
 WORKDIR /app
 
 COPY --chown=node:node --from=prod-deps /app/node_modules ./node_modules
-COPY --chown=node:node --from=prod-deps /app/package.json ./package.json
 
-COPY --chown=node:node --from=builder /app/packages/backend-common/package.json ./packages/backend-common/
-COPY --chown=node:node --from=builder /app/packages/backend-common/src           ./packages/backend-common/src
-
-COPY --chown=node:node --from=builder /app/packages/backend-core/package.json ./packages/backend-core/
-COPY --chown=node:node --from=builder /app/packages/backend-core/dist          ./packages/backend-core/dist
+COPY --chown=node:node --from=builder /app/packages/backend-core/dist/bundle.tar.gz ./
+RUN tar xzf bundle.tar.gz && rm bundle.tar.gz
 
 COPY --chown=node:node app-config.yaml app-config.production.yaml ./
 COPY --chown=node:node packages/backend-core/app-config.yaml ./packages/backend-core/
@@ -181,7 +182,6 @@ CMD ["node", "packages/backend-core", \
 
 # ─────────────────────────────────────────────────────────────────────────────
 # backend-content — Scaffolder + TechDocs  (porta 7010)
-#   Discovery keys: scaffolder, techdocs
 # ─────────────────────────────────────────────────────────────────────────────
 FROM base AS backend-content
 
@@ -192,13 +192,9 @@ USER node
 WORKDIR /app
 
 COPY --chown=node:node --from=prod-deps /app/node_modules ./node_modules
-COPY --chown=node:node --from=prod-deps /app/package.json ./package.json
 
-COPY --chown=node:node --from=builder /app/packages/backend-common/package.json ./packages/backend-common/
-COPY --chown=node:node --from=builder /app/packages/backend-common/src           ./packages/backend-common/src
-
-COPY --chown=node:node --from=builder /app/packages/backend-content/package.json ./packages/backend-content/
-COPY --chown=node:node --from=builder /app/packages/backend-content/dist          ./packages/backend-content/dist
+COPY --chown=node:node --from=builder /app/packages/backend-content/dist/bundle.tar.gz ./
+RUN tar xzf bundle.tar.gz && rm bundle.tar.gz
 
 COPY --chown=node:node app-config.yaml app-config.production.yaml ./
 COPY --chown=node:node packages/backend-content/app-config.yaml ./packages/backend-content/
@@ -215,7 +211,6 @@ CMD ["node", "packages/backend-content", \
 
 # ─────────────────────────────────────────────────────────────────────────────
 # backend-aux — Kubernetes + Notifications + Signals + MCP Actions  (porta 7011)
-#   Discovery keys: kubernetes, notifications, signals, mcp-actions
 # ─────────────────────────────────────────────────────────────────────────────
 FROM base AS backend-aux
 
@@ -226,13 +221,9 @@ USER node
 WORKDIR /app
 
 COPY --chown=node:node --from=prod-deps /app/node_modules ./node_modules
-COPY --chown=node:node --from=prod-deps /app/package.json ./package.json
 
-COPY --chown=node:node --from=builder /app/packages/backend-common/package.json ./packages/backend-common/
-COPY --chown=node:node --from=builder /app/packages/backend-common/src           ./packages/backend-common/src
-
-COPY --chown=node:node --from=builder /app/packages/backend-aux/package.json ./packages/backend-aux/
-COPY --chown=node:node --from=builder /app/packages/backend-aux/dist          ./packages/backend-aux/dist
+COPY --chown=node:node --from=builder /app/packages/backend-aux/dist/bundle.tar.gz ./
+RUN tar xzf bundle.tar.gz && rm bundle.tar.gz
 
 COPY --chown=node:node app-config.yaml app-config.production.yaml ./
 COPY --chown=node:node packages/backend-aux/app-config.yaml ./packages/backend-aux/
@@ -246,8 +237,7 @@ CMD ["node", "packages/backend-aux", \
 
 # ─────────────────────────────────────────────────────────────────────────────
 # backend-proxy — API Gateway + host do React SPA  (porta 7007)
-#   Plugins: app-backend, proxy-backend
-#   Roteia tráfego do browser para os feature-backends via discovery config
+#   O bundle.tar.gz do backend já inclui packages/app/dist/ (SPA estático).
 # ─────────────────────────────────────────────────────────────────────────────
 FROM base AS backend-proxy
 
@@ -258,17 +248,9 @@ USER node
 WORKDIR /app
 
 COPY --chown=node:node --from=prod-deps /app/node_modules ./node_modules
-COPY --chown=node:node --from=prod-deps /app/package.json ./package.json
 
-COPY --chown=node:node --from=builder /app/packages/backend-common/package.json ./packages/backend-common/
-COPY --chown=node:node --from=builder /app/packages/backend-common/src           ./packages/backend-common/src
-
-COPY --chown=node:node --from=builder /app/packages/backend/package.json ./packages/backend/
-COPY --chown=node:node --from=builder /app/packages/backend/dist          ./packages/backend/dist
-
-# SPA estático pré-compilado — servido pelo plugin-app-backend
-COPY --chown=node:node --from=builder /app/packages/app/package.json ./packages/app/
-COPY --chown=node:node --from=builder /app/packages/app/dist         ./packages/app/dist
+COPY --chown=node:node --from=builder /app/packages/backend/dist/bundle.tar.gz ./
+RUN tar xzf bundle.tar.gz && rm bundle.tar.gz
 
 COPY --chown=node:node app-config.yaml app-config.production.yaml ./
 
