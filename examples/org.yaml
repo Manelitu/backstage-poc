@@ -48,7 +48,7 @@ spec:
   type: team
   profile:
     displayName: Engenharia
-    email: engenharia@sunne.com.br
+    email: engenharia@email.com
   parent: tecnologia
   children: [backend, frontend]
   members: [manelitu]
@@ -65,7 +65,7 @@ spec:
   type: team
   profile:
     displayName: Platform
-    email: platform@sunne.com.br
+    email: platform@email.com
   parent: tecnologia
   children: []
   members: [guest]
@@ -125,7 +125,7 @@ metadata:
 spec:
   profile:
     displayName: Manel
-    email: manelito@sunne.com.br
+    email: manelito@email.com
     picture: https://avatars.githubusercontent.com/manelitu
   memberOf: [engenharia, backend, guests]
 

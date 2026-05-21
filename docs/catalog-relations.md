@@ -257,7 +257,7 @@ no `spec` e o Backstage gera os pares de relações bidirecionais automaticament
 ║    members → [manelitu, guest]                                            ║
 ║                                                                           ║
 ║  USER: manelitu  ──memberOf──► [engenharia, backend, guests]              ║
-║    email: manelito@sunne.com.br                                           ║
+║    email: manelito@email.com                                           ║
 ║    github: manelitu                                                       ║
 ║                                                                           ║
 ║  USER: guest  ──memberOf──► [platform, guests]                           ║
@@ -344,7 +344,7 @@ graph TD
     BCK["👥 backend\nteam"]
     FRT["👥 frontend\nteam"]
     GST["👥 guests\nteam (dev/local)"]
-    M["👤 manelitu\nmanelito@sunne.com.br"]
+    M["👤 manelitu\nmanelito@email.com"]
     G["👤 guest"]
 
     TEC --> ENG
@@ -436,7 +436,7 @@ metadata:
 spec:
   profile:
     displayName: Nome Sobrenome
-    email: nome@sunne.com.br
+    email: nome@email.com
     picture: https://avatars.githubusercontent.com/novo-dev
   memberOf: [backend, guests]
 ```
