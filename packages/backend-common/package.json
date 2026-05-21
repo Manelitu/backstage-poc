@@ -1,16 +1,26 @@
 {
   "name": "backend-common",
   "version": "0.0.0",
-  "main": "src/index.ts",
+  "main": "dist/index.cjs.js",
   "types": "src/index.ts",
   "private": true,
   "backstage": {
     "role": "node-library"
   },
+  "scripts": {
+    "build": "backstage-cli package build",
+    "lint": "backstage-cli package lint",
+    "test": "backstage-cli package test",
+    "clean": "backstage-cli package clean"
+  },
   "dependencies": {
     "@backstage/backend-plugin-api": "^1.9.0"
   },
   "devDependencies": {
-    "@backstage/cli": "^0.36.1"
-  }
+    "@backstage/cli": "^0.36.1",
+    "jest": "*"
+  },
+  "files": [
+    "dist"
+  ]
 }

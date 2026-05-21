@@ -19,8 +19,8 @@
     "build:backend-core": "yarn workspace backend-core build",
     "build:backend-content": "yarn workspace backend-content build",
     "build:backend-aux": "yarn workspace backend-aux build",
-    "build:backends": "yarn workspaces foreach --include backend --include backend-auth --include backend-core --include backend-content --include backend-aux run build",
-    "build:all": "backstage-cli repo build --all",
+    "build:backends": "yarn workspaces foreach --all --topological --include backend-common --include backend --include backend-auth --include backend-core --include backend-content --include backend-aux run build",
+    "build:all": "yarn tsc && backstage-cli repo build --all",
     "build-image": "yarn workspace backend build-image",
     "build-image:auth": "yarn workspace backend-auth build-image",
     "build-image:core": "yarn workspace backend-core build-image",
@@ -68,7 +68,8 @@
   },
   "resolutions": {
     "@types/react": "^18",
-    "@types/react-dom": "^18"
+    "@types/react-dom": "^18",
+    "@backstage/frontend-plugin-api": "^0.16.0"
   },
   "prettier": "@backstage/cli/config/prettier",
   "lint-staged": {
