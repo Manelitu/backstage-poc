@@ -1,15 +1,26 @@
 # docker-compose.yml — Backstage Multi-Backend
 #
-# Sobe PostgreSQL + pgAdmin + cinco backends em uma rede Docker interna.
+# Sobe PostgreSQL + quatro feature backends + proxy/SPA em uma rede Docker interna.
 #
-# Comandos:
-#   docker compose build                        # constrói todas as imagens
-#   docker compose up                           # sobe tudo
-#   docker compose up postgres pgadmin          # sobe só banco + painel
-#   docker compose up backstage-auth            # sobe só um serviço
-#   docker compose build --build-arg YARN_ENABLE_STRICT_SSL=false  # rede corporativa SSL
+# ── Modos de uso ─────────────────────────────────────────────────────────────
 #
-# Variáveis de ambiente — copie .env.example para .env e ajuste os valores:
+#   Desenvolvimento híbrido (recomendado para dev):
+#     docker compose up                        # sobe postgres + feature backends
+#     yarn start:frontend                      # sobe proxy (7007) + webpack (3000) locais
+#     # acesse http://localhost:3000
+#
+#   Tudo no Docker (produção/staging):
+#     docker compose --profile full up         # inclui o proxy/SPA
+#     # acesse http://localhost:7007
+#
+#   Tudo local (sem Docker):
+#     yarn start:all
+#
+# ── Outros comandos ──────────────────────────────────────────────────────────
+#   docker compose build
+#   docker compose build --build-arg YARN_ENABLE_STRICT_SSL=false  # SSL corporativo
+#
+# ── Variáveis de ambiente ────────────────────────────────────────────────────
 #   POSTGRES_USER          (padrão: backstage)
 #   POSTGRES_PASSWORD      (padrão: backstage)
 #   YARN_ENABLE_STRICT_SSL (padrão: true)
@@ -54,6 +65,12 @@ services:
       BACKSTAGE_CORE_URL: http://backstage-core:7009
       BACKSTAGE_CONTENT_URL: http://backstage-content:7010
       BACKSTAGE_AUX_URL: http://backstage-aux:7011
+      AUTH_GITHUB_CLIENT_ID: ${AUTH_GITHUB_CLIENT_ID}
+      AUTH_GITHUB_CLIENT_SECRET: ${AUTH_GITHUB_CLIENT_SECRET}
+    volumes:
+      - ./app-config.yaml:/app/app-config.yaml:ro
+      - ./app-config.production.yaml:/app/app-config.production.yaml:ro
+      - ./packages/backend-auth/app-config.yaml:/app/packages/backend-auth/app-config.yaml:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -79,6 +96,10 @@ services:
       BACKSTAGE_CORE_URL: http://backstage-core:7009
       BACKSTAGE_CONTENT_URL: http://backstage-content:7010
       BACKSTAGE_AUX_URL: http://backstage-aux:7011
+    volumes:
+      - ./app-config.yaml:/app/app-config.yaml:ro
+      - ./app-config.production.yaml:/app/app-config.production.yaml:ro
+      - ./packages/backend-core/app-config.yaml:/app/packages/backend-core/app-config.yaml:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -106,6 +127,10 @@ services:
       BACKSTAGE_CORE_URL: http://backstage-core:7009
       BACKSTAGE_CONTENT_URL: http://backstage-content:7010
       BACKSTAGE_AUX_URL: http://backstage-aux:7011
+    volumes:
+      - ./app-config.yaml:/app/app-config.yaml:ro
+      - ./app-config.production.yaml:/app/app-config.production.yaml:ro
+      - ./packages/backend-content/app-config.yaml:/app/packages/backend-content/app-config.yaml:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -135,6 +160,10 @@ services:
       BACKSTAGE_CORE_URL: http://backstage-core:7009
       BACKSTAGE_CONTENT_URL: http://backstage-content:7010
       BACKSTAGE_AUX_URL: http://backstage-aux:7011
+    volumes:
+      - ./app-config.yaml:/app/app-config.yaml:ro
+      - ./app-config.production.yaml:/app/app-config.production.yaml:ro
+      - ./packages/backend-aux/app-config.yaml:/app/packages/backend-aux/app-config.yaml:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -144,8 +173,11 @@ services:
         condition: service_started
     restart: unless-stopped
 
-  # ── Proxy / SPA host (porta 7007) — entrada pública ──────────────────────
+  # ── Proxy / SPA host (porta 7007) ─────────────────────────────────────────
+  # Perfil "full": só sobe com `docker compose --profile full up`.
+  # No modo dev use `yarn start:frontend` no lugar (proxy local + webpack).
   backstage-proxy:
+    profiles: [full]
     build:
       context: .
       dockerfile: Dockerfile
@@ -164,6 +196,9 @@ services:
       BACKSTAGE_CORE_URL: http://backstage-core:7009
       BACKSTAGE_CONTENT_URL: http://backstage-content:7010
       BACKSTAGE_AUX_URL: http://backstage-aux:7011
+    volumes:
+      - ./app-config.yaml:/app/app-config.yaml:ro
+      - ./app-config.production.yaml:/app/app-config.production.yaml:ro
     depends_on:
       backstage-auth:
         condition: service_started
