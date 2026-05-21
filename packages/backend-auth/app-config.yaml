@@ -1,5 +1,4 @@
 backend:
-  baseUrl: http://localhost:7008
   listen:
     port: 7008
   cors:

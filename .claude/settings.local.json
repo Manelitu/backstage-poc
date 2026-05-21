@@ -22,7 +22,23 @@
       "Bash(Format-Table -AutoSize)",
       "PowerShell(wsl --update)",
       "Bash(tar tzf *)",
-      "Bash(Get-Content \"C:\\\\Bradesco Seguros\\\\Personal\\\\backstage-poc\\\\.env\")"
+      "Bash(Get-Content \"C:\\\\Bradesco Seguros\\\\Personal\\\\backstage-poc\\\\.env\")",
+      "Bash(yarn --version)",
+      "PowerShell(cmd /c \"dir node_modules\\\\ctrlc-windows\")",
+      "PowerShell(cmd /c \"dir node_modules\\\\ctrlc-windows\\\\dist\")",
+      "PowerShell(cmd /c \"dir node_modules\\\\ctrlc-windows\\\\dist\\\\x64\")",
+      "PowerShell(node -e \"require\\('./node_modules/ctrlc-windows/lib/index.js'\\)\" 2>&1)",
+      "PowerShell(yarn rebuild *)",
+      "PowerShell(cmd /c \"type node_modules\\\\ctrlc-windows\\\\package.json\")",
+      "PowerShell(yarn add *)",
+      "PowerShell(yarn why *)",
+      "PowerShell(yarn install *)",
+      "PowerShell(node -e \"require\\('./node_modules/ctrlc-windows'\\)\" 2>&1)",
+      "PowerShell(cmd /c \"type node_modules\\\\ctrlc-windows\\\\lib\\\\index.js\")",
+      "PowerShell(cargo *)",
+      "PowerShell(yarn patch *)",
+      "PowerShell(yarn patch-commit *)",
+      "PowerShell(node -e \"const m = require\\('./node_modules/ctrlc-windows'\\); console.log\\('ctrlc-windows loaded OK, ctrlc =', typeof m.ctrlc\\);\" 2>&1)"
     ]
   }
 }

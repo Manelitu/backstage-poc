@@ -8,6 +8,7 @@
   "scripts": {
     "start": "backstage-cli repo start",
     "start:all": "concurrently --kill-others-on-fail --prefix-colors \"bgBlue,bgGreen,bgYellow,bgMagenta,bgCyan,bgRed\" -n \"auth,core,content,aux,proxy,frontend\" \"yarn start:auth\" \"wait-on tcp:7008 && yarn start:core\" \"wait-on tcp:7008 tcp:7009 && yarn start:content\" \"wait-on tcp:7008 tcp:7009 && yarn start:aux\" \"wait-on tcp:7008 tcp:7009 tcp:7010 tcp:7011 && yarn start:proxy\" \"wait-on tcp:7008 tcp:7009 tcp:7010 tcp:7011 && yarn start:app\"",
+    "start:frontend": "concurrently --kill-others-on-fail --prefix-colors \"bgBlue,bgGreen\" -n \"proxy,app\" \"yarn start:proxy\" \"wait-on tcp:7007 && yarn start:app\"",
     "start:proxy": "yarn workspace backend start",
     "start:app": "yarn workspace app start",
     "start:auth": "yarn workspace backend-auth start",
