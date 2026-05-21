@@ -345,9 +345,10 @@ Isso funciona porque **todos** os feature backends carregam o mesmo `app-config.
 
 2. backend-auth (7008) inicia o OAuth flow com GitHub
 
-3. GitHub redireciona para  http://localhost:7008/api/auth/github/handler/frame
+3. GitHub redireciona para  http://localhost:7007/api/auth/github/handler/frame
+   └─ Proxy roteia para  http://localhost:7008/api/auth/github/handler/frame
 
-4. backend-auth cria a sessão e retorna o token ao browser
+4. backend-auth cria a sessão e retorna o token ao browser via proxy
 ```
 
 > **Atenção:** o Callback URL do OAuth App no GitHub deve apontar para a porta do backend-auth (7008), não para o proxy (7007), pois é o auth que processa o retorno do OAuth.
@@ -638,12 +639,14 @@ O provedor GitHub usa `usernameMatchingUserEntityName` como resolver — o usern
 
 ### Callback URL do OAuth App GitHub
 
-O backend que processa o retorno do OAuth é o `backend-auth` (porta 7008). Configurar no GitHub:
+O callback passa pelo proxy (7007) antes de chegar ao `backend-auth`. Configurar no GitHub:
 
 ```
-Homepage URL:  http://localhost:3000
-Callback URL:  http://localhost:7008/api/auth/github/handler/frame
+Homepage URL:  http://localhost:7007
+Callback URL:  http://localhost:7007/api/auth/github/handler/frame
 ```
+
+> **Por que 7007?** O browser só conhece o proxy. Se o callback apontasse para 7008, o cookie de sessão seria definido numa origem diferente do frontend, quebrando a autenticação.
 
 ### Como adicionar um novo provedor
 
