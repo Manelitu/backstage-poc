@@ -28,20 +28,19 @@
 Este projeto implementa o Backstage em um modelo **multi-backend**: em vez de um único processo Node.js rodando todos os plugins, cada domínio funcional roda em seu próprio processo e porta. Isso permite escalar, deployar e monitorar cada parte da plataforma de forma independente.
 
 ```
-Browser (3000)
+Browser (http://localhost:7007)
     │
     ▼
-Frontend App — webpack dev server (packages/app)
-    │  todas as chamadas /api/* vão para 7007
-    ▼
 Proxy Backend (7007) — packages/backend
-    │  lê backend.discovery.endpoints e roteia cada /api/<pluginId>
+    │  serve o React SPA e roteia cada /api/<pluginId>
     │
     ├──► :7008  backend-auth        auth
     ├──► :7009  backend-core        catalog · permission · search
     ├──► :7010  backend-content     scaffolder · techdocs
     └──► :7011  backend-aux         kubernetes · notifications · signals · mcp-actions
 ```
+
+> **Modo de desenvolvimento local:** o webpack dev server sobe na porta 3000 (`yarn start:app`) e faz proxy das chamadas `/api/*` para o proxy em 7007. No Docker (`docker compose --profile full up`) o browser acessa diretamente **http://localhost:7007**, que serve o SPA estático e roteia a API.
 
 O frontend **nunca conhece** as portas dos feature backends — ele só sabe que existe um backend em `localhost:7007`. Todo o roteamento acontece no proxy de forma transparente.
 
@@ -67,7 +66,7 @@ backstage-poc/
 │
 ├── packages/
 │   │
-│   ├── app/                     # Frontend React (porta 3000)
+│   ├── app/                     # Frontend React (webpack dev server: porta 3000 / Docker: servido pelo proxy em 7007)
 │   │   └── src/
 │   │       ├── App.tsx          # Entry point — registra plugins e módulos
 │   │       └── modules/
@@ -320,8 +319,8 @@ Isso funciona porque **todos** os feature backends carregam o mesmo `app-config.
 ### Exemplo: usuário pesquisa por "payment-service"
 
 ```
-1. Browser faz  GET http://localhost:3000
-   └─ webpack dev server serve a SPA React
+1. Browser faz  GET http://localhost:7007
+   └─ Proxy serve o React SPA (build estático via plugin-app-backend)
 
 2. SPA faz  GET http://localhost:7007/api/search/query?term=payment-service
    └─ Proxy (7007) recebe a requisição
@@ -732,12 +731,12 @@ yarn build:backend-aux
 
 | Processo | URL | Pacote |
 |----------|-----|--------|
-| Frontend | http://localhost:3000 | `packages/app` |
-| Proxy / SPA server | http://localhost:7007 | `packages/backend` |
+| **Proxy / SPA (acesso principal)** | **http://localhost:7007** | `packages/backend` |
 | Auth | http://localhost:7008 | `packages/backend-auth` |
 | Catalog · Permission · Search | http://localhost:7009 | `packages/backend-core` |
 | Scaffolder · TechDocs | http://localhost:7010 | `packages/backend-content` |
 | Kubernetes · Notifications · Signals · MCP | http://localhost:7011 | `packages/backend-aux` |
+| Frontend (webpack dev server) | http://localhost:3000 | `packages/app` — apenas `yarn start:app` |
 
 ---
 
