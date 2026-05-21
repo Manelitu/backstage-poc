@@ -1,6 +1,6 @@
-# Backstage POC
+# Backstage POC — Multi-Backend
 
-Portal de desenvolvedor interno baseado no [Backstage](https://backstage.io), implementado em arquitetura **multi-backend**: cada domínio funcional roda em processo isolado, com deploy e escala independentes.
+POC pessoal para estudo do [Backstage](https://backstage.io) em arquitetura **multi-backend**: cada domínio funcional roda em processo isolado, com deploy e escala independentes.
 
 ---
 

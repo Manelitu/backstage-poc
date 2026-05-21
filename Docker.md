@@ -212,7 +212,7 @@ O flag `--immutable` impede que o `yarn.lock` seja modificado durante a instala�
 
 ### `YARN_ENABLE_STRICT_SSL`
 
-Build argument que controla a verificação SSL do Yarn. O valor padrão é `true` (seguro). Em redes corporativas com certificado auto-assinado (como a Bradesco Seguros), passar `--build-arg YARN_ENABLE_STRICT_SSL=false` permite que o Yarn baixe pacotes sem rejeitar o certificado da cadeia corporativa.
+Build argument que controla a verificação SSL do Yarn. O valor padrão é `true` (seguro). Em redes corporativas com certificado auto-assinado, passar `--build-arg YARN_ENABLE_STRICT_SSL=false` permite que o Yarn baixe pacotes sem rejeitar o certificado.
 
 ---
 

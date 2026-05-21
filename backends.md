@@ -280,7 +280,7 @@ Este é o passo mais crítico. O Backstage usa um `DiscoveryService` para resolv
 
 ```yaml
 backend:
-  baseUrl: https://backstage.bradesco.com.br
+  baseUrl: https://backstage.empresa.com.br
   listen:
     port: 7007
 
@@ -335,7 +335,7 @@ metadata:
     nginx.ingress.kubernetes.io/use-regex: "true"
 spec:
   rules:
-    - host: backstage.bradesco.com.br
+    - host: backstage.empresa.com.br
       http:
         paths:
           - path: /api/(catalog|auth|search|permission|proxy)/.*
@@ -466,7 +466,7 @@ spec:
     spec:
       containers:
         - name: backend-catalog
-          image: bradesco-registry/backstage-catalog:latest
+          image: minha-registry/backstage-catalog:latest
           ports:
             - containerPort: 7007
           resources:

@@ -558,7 +558,7 @@ O catálogo é o coração do Backstage. Cada serviço, API ou time é represent
 ```yaml
 # app-config.yaml → catalog.locations
 - type: url
-  target: https://github.com/bradesco-seguros/meu-servico/blob/main/catalog-info.yaml
+  target: https://github.com/minha-org/meu-servico/blob/main/catalog-info.yaml
 ```
 
 **Via arquivo local (apenas para exemplos/POC):**
@@ -572,8 +572,8 @@ O catálogo é o coração do Backstage. Cada serviço, API ou time é represent
 catalog:
   providers:
     github:
-      bradesco:
-        organization: bradesco-seguros
+      minha-org:
+        organization: minha-org
         catalogPath: '/catalog-info.yaml'
         schedule:
           frequency: { minutes: 30 }
@@ -589,7 +589,7 @@ metadata:
   name: meu-servico
   description: Serviço responsável por X
   annotations:
-    github.com/project-slug: bradesco-seguros/meu-servico
+    github.com/project-slug: minha-org/meu-servico
     backstage.io/techdocs-ref: dir:.
 spec:
   type: service
