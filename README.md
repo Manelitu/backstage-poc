@@ -1,4 +1,4 @@
-# Backstage POC — Portal DevX Bradesco Seguros
+# Backstage POC
 
 Portal de desenvolvedor interno baseado no [Backstage](https://backstage.io), implementado em arquitetura **multi-backend**: cada domínio funcional roda em processo isolado, com deploy e escala independentes.
 
