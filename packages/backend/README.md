@@ -1,59 +1,100 @@
-# example-backend
+# packages/backend — Proxy / API Gateway
 
-This package is an EXAMPLE of a Backstage backend.
+Ponto de entrada único do Backstage. Recebe **todo o tráfego do browser** na porta 7007, roteia chamadas de API para os feature backends e serve o React SPA em produção.
 
-The main purpose of this package is to provide a test bed for Backstage plugins
-that have a backend part. Feel free to experiment locally or within your fork by
-adding dependencies and routes to this backend, to try things out.
+---
 
-Our goal is to eventually amend the create-app flow of the CLI, such that a
-production ready version of a backend skeleton is made alongside the frontend
-app. Until then, feel free to experiment here!
+## Responsabilidades
 
-## Development
+| Responsabilidade | Como |
+|-----------------|------|
+| API Gateway | Reverse proxy via `http-proxy-middleware`, lê rotas do config |
+| Serve o SPA | `plugin-app-backend` entrega o build estático do frontend |
+| Proxy de integrações externas | `plugin-proxy-backend` expõe endpoints externos ao frontend |
 
-To run the example backend, first go to the project root and run
+Este backend **não executa nenhum plugin de negócio** (catalog, auth, scaffolder, etc.). É intencionalmente leve e stateless.
 
-```bash
-yarn install
+---
+
+## Porta
+
+| Ambiente | URL |
+|----------|-----|
+| Dev local | http://localhost:7007 |
+| Docker full | http://localhost:7007 |
+
+---
+
+## Plugins registrados
+
+```typescript
+// src/index.ts
+backend.add(featureBackendProxy);                    // gateway reverso (customizado)
+backend.add(import('@backstage/plugin-app-backend')); // serve o React SPA
+backend.add(import('@backstage/plugin-proxy-backend')); // proxy para APIs externas
 ```
 
-You should only need to do this once.
+### `featureBackendProxy` — como funciona
 
-After that, go to the `packages/backend` directory and run
+Lê `backend.discovery.endpoints` do `app-config.yaml` e registra um middleware de proxy para cada plugin:
 
-```bash
-yarn start
+```
+/api/auth/*        → http://localhost:7008  (ou backstage-auth:7008 no Docker)
+/api/catalog/*     → http://localhost:7009
+/api/permission/*  → http://localhost:7009
+/api/search/*      → http://localhost:7009
+/api/scaffolder/*  → http://localhost:7010
+/api/techdocs/*    → http://localhost:7010
+/api/kubernetes/*  → http://localhost:7011
+/api/notifications/*→ http://localhost:7011
+/api/signals/*     → http://localhost:7011
+/api/mcp-actions/* → http://localhost:7011
 ```
 
-If you want to override any configuration locally, for example adding any secrets,
-you can do so in `app-config.local.yaml`.
+O `pathRewrite` restaura o prefixo `/api/<pluginId>` que o Express remove ao fazer match da rota, para que o backend de destino receba a URL completa.
 
-The backend starts up on port 7007 per default.
+---
 
-## Populating The Catalog
+## Como rodar
 
-If you want to use the catalog functionality, you need to add so called
-locations to the backend. These are places where the backend can find some
-entity descriptor data to consume and serve. For more information, see
-[Software Catalog Overview - Adding Components to the Catalog](https://backstage.io/docs/features/software-catalog/#adding-components-to-the-catalog).
+### Dev local
 
-To get started quickly, this template already includes some statically configured example locations
-in `app-config.yaml` under `catalog.locations`. You can remove and replace these locations as you
-like, and also override them for local development in `app-config.local.yaml`.
+```bash
+yarn start:proxy
+```
 
-## Authentication
+Requer que os feature backends (7008–7011) já estejam rodando.
 
-We chose [Passport](http://www.passportjs.org/) as authentication platform due
-to its comprehensive set of supported authentication
-[strategies](http://www.passportjs.org/packages/).
+### Docker
 
-Read more about the
-[auth-backend](https://github.com/backstage/backstage/blob/master/plugins/auth-backend/README.md)
-and
-[how to add a new provider](https://github.com/backstage/backstage/blob/master/docs/auth/add-auth-provider.md)
+```bash
+docker compose --profile full up backstage-proxy
+```
 
-## Documentation
+---
 
-- [Backstage Readme](https://github.com/backstage/backstage/blob/master/README.md)
-- [Backstage Documentation](https://backstage.io/docs)
+## Configuração
+
+Este backend herda a config base (`app-config.yaml`) e os overrides de produção (`app-config.production.yaml`). Não tem `app-config.yaml` próprio porque usa a porta 7007 definida na base.
+
+A chave `backend.discovery.endpoints` no `app-config.yaml` controla para onde cada plugin é roteado:
+
+```yaml
+backend:
+  discovery:
+    endpoints:
+      - target: 'http://localhost:7008/api/{{pluginId}}'
+        plugins: [auth]
+      - target: 'http://localhost:7009/api/{{pluginId}}'
+        plugins: [catalog, permission, search]
+      # ...
+```
+
+Em Docker, os `target` usam os nomes DNS internos (`backstage-auth:7008`, etc.) injetados via variáveis de ambiente no `app-config.production.yaml`.
+
+---
+
+## Leitura relacionada
+
+- [ARCHITECTURE.md](../../ARCHITECTURE.md) — arquitetura completa e fluxos de requisição
+- [Docker.md](../../Docker.md) — como buildar e operar via Docker Compose
