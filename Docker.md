@@ -1,10 +1,98 @@
-# Docker — Guia de Funcionamento
+# Docker — Guia de Operação e Funcionamento
 
-Este documento explica como o `Dockerfile` e o `docker-compose.yml` deste projeto funcionam, quais decisões foram tomadas e por quê.
+Este documento cobre **como operar** o projeto via Docker Compose e **como o Dockerfile funciona** internamente — decisões tomadas e por quê.
 
 ---
 
-## Visão geral
+## Operação Rápida
+
+### Pré-requisitos
+
+- Docker Desktop 4.x+ com BuildKit habilitado
+- Arquivo `.env` configurado (ver abaixo)
+
+### Variáveis de ambiente
+
+```bash
+cp .env.example .env
+# edite .env e preencha AUTH_GITHUB_CLIENT_ID e AUTH_GITHUB_CLIENT_SECRET
+```
+
+| Variável | Padrão | Descrição |
+|----------|--------|-----------|
+| `POSTGRES_USER` | `backstage` | Usuário do banco PostgreSQL |
+| `POSTGRES_PASSWORD` | `backstage` | Senha do banco PostgreSQL |
+| `YARN_ENABLE_STRICT_SSL` | `true` | Defina `false` em redes com certificado auto-assinado |
+| `AUTH_GITHUB_CLIENT_ID` | — | Client ID do GitHub OAuth App |
+| `AUTH_GITHUB_CLIENT_SECRET` | — | Client Secret do GitHub OAuth App |
+
+### GitHub OAuth App
+
+Crie em **GitHub → Settings → Developer settings → OAuth Apps → New OAuth App**:
+
+| Campo | Valor |
+|-------|-------|
+| Homepage URL | `http://localhost:7007` |
+| Authorization callback URL | `http://localhost:7007/api/auth/github/handler/frame` |
+
+> **Por que 7007 e não 7008?** O callback deve passar pelo proxy (7007), não diretamente para o backend-auth (7008). Se apontasse para 7008, o cookie de sessão seria definido numa origem diferente do frontend, quebrando a autenticação.
+
+### Modos de execução
+
+**Tudo no Docker** (recomendado para demo/staging):
+```bash
+docker compose --profile full up --build
+# acesse http://localhost:7007
+```
+
+**Híbrido** (backends no Docker, frontend local):
+```bash
+# Terminal 1
+docker compose up --build
+# Terminal 2
+yarn start:frontend      # proxy :7007 + webpack :3000
+# acesse http://localhost:3000
+```
+
+### Comandos do dia a dia
+
+```bash
+# Subir tudo com rebuild
+docker compose --profile full up --build
+
+# Rebuild de um serviço específico
+docker compose --profile full up --build backstage-auth
+
+# Aplicar mudança de YAML sem rebuild (config é volume-mounted)
+docker compose --profile full restart backstage-auth
+
+# Ver logs em tempo real
+docker compose logs -f backstage-auth
+
+# Parar tudo
+docker compose --profile full down
+
+# Parar e apagar banco de dados
+docker compose --profile full down -v
+
+# Build sem cache (quando a cache do Docker está estranha)
+docker compose build --no-cache
+```
+
+### Troubleshooting
+
+| Erro | Causa | Solução |
+|------|-------|---------|
+| `pull access denied for backstage/auth` | Imagem local não buildada | `docker compose --profile full up --build` |
+| `yarn install --immutable` falha | `yarn.lock` inconsistente | `yarn install` localmente, commitar o lockfile atualizado |
+| `The redirect_uri is not associated` | Callback URL errado no GitHub OAuth App | Confirmar `http://localhost:7007/api/auth/github/handler/frame` no GitHub |
+| `Missing session cookie` | Fluxo OAuth não completou (erro acima) | Resolver o redirect_uri primeiro |
+| `GitHub provider not configured to support sign-in` | Falta `signIn.resolvers` no config | Adicionar resolver em `app-config.yaml` (ver ARCHITECTURE.md § 11) |
+| `Skipping initialization` no PostgreSQL | Normal — volume com dados de execução anterior | Não é erro |
+
+---
+
+## Visão geral do Dockerfile
 
 O projeto tem cinco processos Node.js independentes que precisam existir em produção:
 
