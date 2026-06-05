@@ -1,0 +1,140 @@
+# Substitua IMAGE_REGISTRY pela URL do seu registry (ex: gcr.io/meu-projeto)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config-content
+  namespace: backstage
+  labels:
+    component: content
+data:
+  app-config.yaml: |
+    backend:
+      baseUrl: http://localhost:7010
+      listen:
+        port: 7010
+      cors:
+        origin: http://localhost:3000
+        methods: [GET, HEAD, PATCH, POST, PUT, DELETE]
+        credentials: true
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backstage-content
+  namespace: backstage
+  labels:
+    app: backstage-content
+    component: content
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backstage-content
+  template:
+    metadata:
+      labels:
+        app: backstage-content
+        component: content
+    spec:
+      initContainers:
+        - name: wait-for-postgres
+          image: postgres:16-alpine
+          command:
+            - sh
+            - -c
+            - until pg_isready -h postgres-content -U $(POSTGRES_USER); do echo "aguardando postgres-content..."; sleep 2; done
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: backstage-credentials
+                  key: POSTGRES_USER
+      containers:
+        - name: backstage-content
+          image: IMAGE_REGISTRY/backstage-content:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 7010
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: NODE_OPTIONS
+              value: "--no-node-snapshot"
+            - name: POSTGRES_HOST
+              value: postgres-content
+            - name: POSTGRES_PORT
+              value: "5432"
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: backstage-credentials
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: backstage-credentials
+                  key: POSTGRES_PASSWORD
+            - name: BACKSTAGE_AUTH_URL
+              value: http://backstage-auth:7008
+            - name: BACKSTAGE_CORE_URL
+              value: http://backstage-core:7009
+            - name: BACKSTAGE_CONTENT_URL
+              value: http://backstage-content:7010
+            - name: BACKSTAGE_AUX_URL
+              value: http://backstage-aux:7011
+            - name: GITHUB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: backstage-credentials
+                  key: GITHUB_TOKEN
+          volumeMounts:
+            - name: app-config-shared
+              mountPath: /app/app-config.yaml
+              subPath: app-config.yaml
+            - name: app-config-shared
+              mountPath: /app/app-config.production.yaml
+              subPath: app-config.production.yaml
+            - name: app-config-content
+              mountPath: /app/packages/backend-content/app-config.yaml
+              subPath: app-config.yaml
+          readinessProbe:
+            tcpSocket:
+              port: 7010
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 7010
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+      volumes:
+        - name: app-config-shared
+          configMap:
+            name: app-config-shared
+        - name: app-config-content
+          configMap:
+            name: app-config-content
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backstage-content
+  namespace: backstage
+  labels:
+    app: backstage-content
+    component: content
+spec:
+  selector:
+    app: backstage-content
+  ports:
+    - name: http
+      port: 7010
+      targetPort: 7010

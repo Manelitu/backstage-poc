@@ -1,0 +1,1368 @@
+# ============================================================
+# Backstage POC — Manifesto Kubernetes Consolidado
+# ============================================================
+#
+# Aplique em ordem com:
+#   kubectl apply -f deployment.yaml
+#
+# Antes de aplicar, preencha o Secret abaixo com os valores reais
+# ou use kubectl create secret (veja comentário no bloco Secret).
+#
+# Substitua IMAGE_REGISTRY em todos os Deployments de backend
+# pela URL do seu registry de imagens (ex: gcr.io/meu-projeto).
+#
+# ── Arquitetura ───────────────────────────────────────────────
+#   postgres-auth    <-> backstage-auth     (7008)  Auth
+#   postgres-core    <-> backstage-core     (7009)  Catalog / Permission / Search
+#   postgres-content <-> backstage-content  (7010)  Scaffolder / TechDocs
+#   postgres-aux     <-> backstage-aux      (7011)  Kubernetes / Notifications / MCP
+#   postgres-proxy   <-> backstage-proxy    (7007)  Proxy / SPA  ← entrypoint público
+#
+
+# ============================================================
+# 1. Namespace
+# ============================================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: backstage
+  labels:
+    app.kubernetes.io/name: backstage
+---
+# ============================================================
+# 2. Secret — credenciais sensíveis
+#
+# Para preencher via CLI (recomendado para produção):
+#   kubectl create secret generic backstage-credentials \
+#     --from-literal=POSTGRES_USER=backstage \
+#     --from-literal=POSTGRES_PASSWORD=<senha> \
+#     --from-literal=AUTH_GITHUB_CLIENT_ID=<id> \
+#     --from-literal=AUTH_GITHUB_CLIENT_SECRET=<secret> \
+#     --from-literal=GITHUB_TOKEN=<token> \
+#     -n backstage
+# ============================================================
+apiVersion: v1
+kind: Secret
+metadata:
+  name: backstage-credentials
+  namespace: backstage
+type: Opaque
+stringData:
+  POSTGRES_USER: "backstage"
+  POSTGRES_PASSWORD: "changeme"
+  AUTH_GITHUB_CLIENT_ID: ""
+  AUTH_GITHUB_CLIENT_SECRET: ""
+  GITHUB_TOKEN: ""
+---
+# ============================================================
+# 3. ConfigMap compartilhado — app-config.yaml + app-config.production.yaml
+# ============================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config-shared
+  namespace: backstage
+data:
+  app-config.yaml: |
+    app:
+      title: Scaffolded Backstage App
+      baseUrl: http://localhost:3000
+      packages: all
+      extensions:
+        - nav-item:search: false
+        - nav-item:user-settings: false
+        - nav-item:catalog: false
+        - nav-item:scaffolder: false
+        - page:catalog:
+            config:
+              path: /
+
+    organization:
+      name: My Company
+
+    backend:
+      baseUrl: http://localhost:7007
+      listen:
+        port: 7007
+      csp:
+        connect-src: ["'self'", 'http:', 'https:']
+      cors:
+        origin: http://localhost:3000
+        methods: [GET, HEAD, PATCH, POST, PUT, DELETE]
+        credentials: true
+      database:
+        client: better-sqlite3
+        connection: ':memory:'
+      discovery:
+        endpoints:
+          - target: 'http://localhost:7008/api/{{pluginId}}'
+            plugins: [auth]
+          - target: 'http://localhost:7009/api/{{pluginId}}'
+            plugins: [catalog, permission, search]
+          - target: 'http://localhost:7010/api/{{pluginId}}'
+            plugins: [scaffolder, techdocs]
+          - target: 'http://localhost:7011/api/{{pluginId}}'
+            plugins: [kubernetes, notifications, signals, mcp-actions]
+      actions:
+        pluginSources:
+          - auth
+          - catalog
+          - scaffolder
+
+    integrations:
+      github:
+        - host: github.com
+          token: ${GITHUB_TOKEN}
+
+    techdocs:
+      builder: 'local'
+      generator:
+        runIn: 'docker'
+      publisher:
+        type: 'local'
+
+    auth:
+      providers:
+        guest: {}
+        github:
+          development:
+            clientId: ${AUTH_GITHUB_CLIENT_ID}
+            clientSecret: ${AUTH_GITHUB_CLIENT_SECRET}
+            callbackUrl: http://localhost:7007/api/auth/github/handler/frame
+            signIn:
+              resolvers:
+                - resolver: usernameMatchingUserEntityName
+          production:
+            clientId: ${AUTH_GITHUB_CLIENT_ID}
+            clientSecret: ${AUTH_GITHUB_CLIENT_SECRET}
+            callbackUrl: http://localhost:7007/api/auth/github/handler/frame
+            signIn:
+              resolvers:
+                - resolver: usernameMatchingUserEntityName
+      experimentalClientIdMetadataDocuments:
+        enabled: false
+
+    scaffolder:
+
+    catalog:
+      import:
+        entityFilename: catalog-info.yaml
+        pullRequestBranchName: backstage-integration
+      rules:
+        - allow: [Component, System, API, Resource, Domain, Location, Group, User, Template]
+      locations:
+        - type: file
+          target: ../../examples/entities.yaml
+        - type: file
+          target: ../../examples/template/template.yaml
+          rules:
+            - allow: [Template]
+        - type: file
+          target: ../../examples/org.yaml
+          rules:
+            - allow: [User, Group, Domain, System]
+        - type: url
+          target: https://github.com/Manelitu/backstage-api-test/blob/main/catalog-info.yaml
+        - type: url
+          target: https://github.com/Manelitu/backstage-poc-domain/blob/main/catalog-info.yaml
+        - type: url
+          target: https://github.com/Manelitu/backstage-poc-system/blob/main/catalog-info.yaml
+
+    kubernetes:
+
+    permission:
+      enabled: true
+
+    mcpActions:
+      name: 'My Company Backstage'
+      description: 'Tools for managing your software catalog, creating new services from templates, and exploring your developer portal'
+
+  app-config.production.yaml: |
+    # Atualize app.baseUrl e backend.baseUrl para a URL real do cluster
+    app:
+      baseUrl: http://localhost:7007
+
+    backend:
+      baseUrl: http://localhost:7007
+      listen:
+        host: '0.0.0.0'
+        port: 7007
+      database:
+        client: pg
+        connection:
+          host: ${POSTGRES_HOST}
+          port: ${POSTGRES_PORT}
+          user: ${POSTGRES_USER}
+          password: ${POSTGRES_PASSWORD}
+      discovery:
+        endpoints:
+          - target: '${BACKSTAGE_AUTH_URL}/api/{{pluginId}}'
+            plugins: [auth]
+          - target: '${BACKSTAGE_CORE_URL}/api/{{pluginId}}'
+            plugins: [catalog, permission, search]
+          - target: '${BACKSTAGE_CONTENT_URL}/api/{{pluginId}}'
+            plugins: [scaffolder, techdocs]
+          - target: '${BACKSTAGE_AUX_URL}/api/{{pluginId}}'
+            plugins: [kubernetes, notifications, signals, mcp-actions]
+
+    auth:
+      providers:
+        guest: {}
+
+    catalog:
+      locations:
+        - type: file
+          target: ./examples/entities.yaml
+        - type: file
+          target: ./examples/template/template.yaml
+          rules:
+            - allow: [Template]
+        - type: file
+          target: ./examples/org.yaml
+          rules:
+            - allow: [User, Group]
+---
+# ============================================================
+# 4. ConfigMaps por componente (configurações de porta/cors)
+# ============================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config-auth
+  namespace: backstage
+  labels:
+    component: auth
+data:
+  app-config.yaml: |
+    backend:
+      listen:
+        port: 7008
+      cors:
+        origin: http://localhost:3000
+        methods: [GET, HEAD, PATCH, POST, PUT, DELETE]
+        credentials: true
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config-core
+  namespace: backstage
+  labels:
+    component: core
+data:
+  app-config.yaml: |
+    backend:
+      baseUrl: http://localhost:7009
+      listen:
+        port: 7009
+      cors:
+        origin: http://localhost:3000
+        methods: [GET, HEAD, PATCH, POST, PUT, DELETE]
+        credentials: true
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config-content
+  namespace: backstage
+  labels:
+    component: content
+data:
+  app-config.yaml: |
+    backend:
+      baseUrl: http://localhost:7010
+      listen:
+        port: 7010
+      cors:
+        origin: http://localhost:3000
+        methods: [GET, HEAD, PATCH, POST, PUT, DELETE]
+        credentials: true
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config-aux
+  namespace: backstage
+  labels:
+    component: aux
+data:
+  app-config.yaml: |
+    backend:
+      baseUrl: http://localhost:7011
+      listen:
+        port: 7011
+      cors:
+        origin: http://localhost:3000
+        methods: [GET, HEAD, PATCH, POST, PUT, DELETE]
+        credentials: true
+---
+# ============================================================
+# 5. PostgreSQL — StatefulSets + Services headless
+# ============================================================
+
+# ── Auth ────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres-auth
+  namespace: backstage
+  labels:
+    app: postgres-auth
+    component: auth
+spec:
+  serviceName: postgres-auth
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres-auth
+  template:
+    metadata:
+      labels:
+        app: postgres-auth
+        component: auth
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: backstage-credentials
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: backstage-credentials
+                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_DB
+              value: backstage
+          ports:
+            - name: postgres
+              containerPort: 5432
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "$(POSTGRES_USER)"]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "$(POSTGRES_USER)"]
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "50m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 5Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-auth
+  namespace: backstage
+  labels:
+    app: postgres-auth
+    component: auth
+spec:
+  clusterIP: None
+  selector:
+    app: postgres-auth
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432
+---
+# ── Core ────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres-core
+  namespace: backstage
+  labels:
+    app: postgres-core
+    component: core
+spec:
+  serviceName: postgres-core
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres-core
+  template:
+    metadata:
+      labels:
+        app: postgres-core
+        component: core
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: backstage-credentials
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: backstage-credentials
+                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_DB
+              value: backstage
+          ports:
+            - name: postgres
+              containerPort: 5432
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "$(POSTGRES_USER)"]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "$(POSTGRES_USER)"]
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "50m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 5Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-core
+  namespace: backstage
+  labels:
+    app: postgres-core
+    component: core
+spec:
+  clusterIP: None
+  selector:
+    app: postgres-core
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432
+---
+# ── Content ─────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres-content
+  namespace: backstage
+  labels:
+    app: postgres-content
+    component: content
+spec:
+  serviceName: postgres-content
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres-content
+  template:
+    metadata:
+      labels:
+        app: postgres-content
+        component: content
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: backstage-credentials
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: backstage-credentials
+                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_DB
+              value: backstage
+          ports:
+            - name: postgres
+              containerPort: 5432
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "$(POSTGRES_USER)"]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "$(POSTGRES_USER)"]
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "50m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 5Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-content
+  namespace: backstage
+  labels:
+    app: postgres-content
+    component: content
+spec:
+  clusterIP: None
+  selector:
+    app: postgres-content
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432
+---
+# ── Aux ─────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres-aux
+  namespace: backstage
+  labels:
+    app: postgres-aux
+    component: aux
+spec:
+  serviceName: postgres-aux
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres-aux
+  template:
+    metadata:
+      labels:
+        app: postgres-aux
+        component: aux
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: backstage-credentials
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: backstage-credentials
+                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_DB
+              value: backstage
+          ports:
+            - name: postgres
+              containerPort: 5432
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "$(POSTGRES_USER)"]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "$(POSTGRES_USER)"]
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "50m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 5Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-aux
+  namespace: backstage
+  labels:
+    app: postgres-aux
+    component: aux
+spec:
+  clusterIP: None
+  selector:
+    app: postgres-aux
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432
+---
+# ── Proxy ────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres-proxy
+  namespace: backstage
+  labels:
+    app: postgres-proxy
+    component: proxy
+spec:
+  serviceName: postgres-proxy
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres-proxy
+  template:
+    metadata:
+      labels:
+        app: postgres-proxy
+        component: proxy
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: backstage-credentials
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: backstage-credentials
+                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_DB
+              value: backstage
+          ports:
+            - name: postgres
+              containerPort: 5432
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "$(POSTGRES_USER)"]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "$(POSTGRES_USER)"]
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "50m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 5Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-proxy
+  namespace: backstage
+  labels:
+    app: postgres-proxy
+    component: proxy
+spec:
+  clusterIP: None
+  selector:
+    app: postgres-proxy
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432
+---
+# ============================================================
+# 6. Backends — Deployments + Services
+# ============================================================
+
+# ── Auth (7008) ──────────────────────────────────────────────
+# Substitua IMAGE_REGISTRY pela URL do seu registry
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backstage-auth
+  namespace: backstage
+  labels:
+    app: backstage-auth
+    component: auth
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backstage-auth
+  template:
+    metadata:
+      labels:
+        app: backstage-auth
+        component: auth
+    spec:
+      initContainers:
+        - name: wait-for-postgres
+          image: postgres:16-alpine
+          command:
+            - sh
+            - -c
+            - until pg_isready -h postgres-auth -U $(POSTGRES_USER); do echo "aguardando postgres-auth..."; sleep 2; done
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: backstage-credentials
+                  key: POSTGRES_USER
+      containers:
+        - name: backstage-auth
+          image: IMAGE_REGISTRY/backstage-auth:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 7008
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: NODE_OPTIONS
+              value: "--no-node-snapshot"
+            - name: POSTGRES_HOST
+              value: postgres-auth
+            - name: POSTGRES_PORT
+              value: "5432"
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: backstage-credentials
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: backstage-credentials
+                  key: POSTGRES_PASSWORD
+            - name: BACKSTAGE_AUTH_URL
+              value: http://backstage-auth:7008
+            - name: BACKSTAGE_CORE_URL
+              value: http://backstage-core:7009
+            - name: BACKSTAGE_CONTENT_URL
+              value: http://backstage-content:7010
+            - name: BACKSTAGE_AUX_URL
+              value: http://backstage-aux:7011
+            - name: AUTH_GITHUB_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: backstage-credentials
+                  key: AUTH_GITHUB_CLIENT_ID
+            - name: AUTH_GITHUB_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: backstage-credentials
+                  key: AUTH_GITHUB_CLIENT_SECRET
+            - name: GITHUB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: backstage-credentials
+                  key: GITHUB_TOKEN
+          volumeMounts:
+            - name: app-config-shared
+              mountPath: /app/app-config.yaml
+              subPath: app-config.yaml
+            - name: app-config-shared
+              mountPath: /app/app-config.production.yaml
+              subPath: app-config.production.yaml
+            - name: app-config-auth
+              mountPath: /app/packages/backend-auth/app-config.yaml
+              subPath: app-config.yaml
+          readinessProbe:
+            tcpSocket:
+              port: 7008
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 7008
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+      volumes:
+        - name: app-config-shared
+          configMap:
+            name: app-config-shared
+        - name: app-config-auth
+          configMap:
+            name: app-config-auth
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backstage-auth
+  namespace: backstage
+  labels:
+    app: backstage-auth
+    component: auth
+spec:
+  selector:
+    app: backstage-auth
+  ports:
+    - name: http
+      port: 7008
+      targetPort: 7008
+---
+# ── Core — Catalog / Permission / Search (7009) ──────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backstage-core
+  namespace: backstage
+  labels:
+    app: backstage-core
+    component: core
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backstage-core
+  template:
+    metadata:
+      labels:
+        app: backstage-core
+        component: core
+    spec:
+      initContainers:
+        - name: wait-for-postgres
+          image: postgres:16-alpine
+          command:
+            - sh
+            - -c
+            - until pg_isready -h postgres-core -U $(POSTGRES_USER); do echo "aguardando postgres-core..."; sleep 2; done
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: backstage-credentials
+                  key: POSTGRES_USER
+      containers:
+        - name: backstage-core
+          image: IMAGE_REGISTRY/backstage-core:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 7009
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: NODE_OPTIONS
+              value: "--no-node-snapshot"
+            - name: POSTGRES_HOST
+              value: postgres-core
+            - name: POSTGRES_PORT
+              value: "5432"
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: backstage-credentials
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: backstage-credentials
+                  key: POSTGRES_PASSWORD
+            - name: BACKSTAGE_AUTH_URL
+              value: http://backstage-auth:7008
+            - name: BACKSTAGE_CORE_URL
+              value: http://backstage-core:7009
+            - name: BACKSTAGE_CONTENT_URL
+              value: http://backstage-content:7010
+            - name: BACKSTAGE_AUX_URL
+              value: http://backstage-aux:7011
+            - name: GITHUB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: backstage-credentials
+                  key: GITHUB_TOKEN
+          volumeMounts:
+            - name: app-config-shared
+              mountPath: /app/app-config.yaml
+              subPath: app-config.yaml
+            - name: app-config-shared
+              mountPath: /app/app-config.production.yaml
+              subPath: app-config.production.yaml
+            - name: app-config-core
+              mountPath: /app/packages/backend-core/app-config.yaml
+              subPath: app-config.yaml
+          readinessProbe:
+            tcpSocket:
+              port: 7009
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 7009
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+      volumes:
+        - name: app-config-shared
+          configMap:
+            name: app-config-shared
+        - name: app-config-core
+          configMap:
+            name: app-config-core
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backstage-core
+  namespace: backstage
+  labels:
+    app: backstage-core
+    component: core
+spec:
+  selector:
+    app: backstage-core
+  ports:
+    - name: http
+      port: 7009
+      targetPort: 7009
+---
+# ── Content — Scaffolder / TechDocs (7010) ───────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backstage-content
+  namespace: backstage
+  labels:
+    app: backstage-content
+    component: content
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backstage-content
+  template:
+    metadata:
+      labels:
+        app: backstage-content
+        component: content
+    spec:
+      initContainers:
+        - name: wait-for-postgres
+          image: postgres:16-alpine
+          command:
+            - sh
+            - -c
+            - until pg_isready -h postgres-content -U $(POSTGRES_USER); do echo "aguardando postgres-content..."; sleep 2; done
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: backstage-credentials
+                  key: POSTGRES_USER
+      containers:
+        - name: backstage-content
+          image: IMAGE_REGISTRY/backstage-content:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 7010
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: NODE_OPTIONS
+              value: "--no-node-snapshot"
+            - name: POSTGRES_HOST
+              value: postgres-content
+            - name: POSTGRES_PORT
+              value: "5432"
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: backstage-credentials
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: backstage-credentials
+                  key: POSTGRES_PASSWORD
+            - name: BACKSTAGE_AUTH_URL
+              value: http://backstage-auth:7008
+            - name: BACKSTAGE_CORE_URL
+              value: http://backstage-core:7009
+            - name: BACKSTAGE_CONTENT_URL
+              value: http://backstage-content:7010
+            - name: BACKSTAGE_AUX_URL
+              value: http://backstage-aux:7011
+            - name: GITHUB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: backstage-credentials
+                  key: GITHUB_TOKEN
+          volumeMounts:
+            - name: app-config-shared
+              mountPath: /app/app-config.yaml
+              subPath: app-config.yaml
+            - name: app-config-shared
+              mountPath: /app/app-config.production.yaml
+              subPath: app-config.production.yaml
+            - name: app-config-content
+              mountPath: /app/packages/backend-content/app-config.yaml
+              subPath: app-config.yaml
+          readinessProbe:
+            tcpSocket:
+              port: 7010
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 7010
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+      volumes:
+        - name: app-config-shared
+          configMap:
+            name: app-config-shared
+        - name: app-config-content
+          configMap:
+            name: app-config-content
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backstage-content
+  namespace: backstage
+  labels:
+    app: backstage-content
+    component: content
+spec:
+  selector:
+    app: backstage-content
+  ports:
+    - name: http
+      port: 7010
+      targetPort: 7010
+---
+# ── Aux — Kubernetes / Notifications / Signals / MCP (7011) ──
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backstage-aux
+  namespace: backstage
+  labels:
+    app: backstage-aux
+    component: aux
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backstage-aux
+  template:
+    metadata:
+      labels:
+        app: backstage-aux
+        component: aux
+    spec:
+      initContainers:
+        - name: wait-for-postgres
+          image: postgres:16-alpine
+          command:
+            - sh
+            - -c
+            - until pg_isready -h postgres-aux -U $(POSTGRES_USER); do echo "aguardando postgres-aux..."; sleep 2; done
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: backstage-credentials
+                  key: POSTGRES_USER
+      containers:
+        - name: backstage-aux
+          image: IMAGE_REGISTRY/backstage-aux:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 7011
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: NODE_OPTIONS
+              value: "--no-node-snapshot"
+            - name: POSTGRES_HOST
+              value: postgres-aux
+            - name: POSTGRES_PORT
+              value: "5432"
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: backstage-credentials
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: backstage-credentials
+                  key: POSTGRES_PASSWORD
+            - name: BACKSTAGE_AUTH_URL
+              value: http://backstage-auth:7008
+            - name: BACKSTAGE_CORE_URL
+              value: http://backstage-core:7009
+            - name: BACKSTAGE_CONTENT_URL
+              value: http://backstage-content:7010
+            - name: BACKSTAGE_AUX_URL
+              value: http://backstage-aux:7011
+            - name: GITHUB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: backstage-credentials
+                  key: GITHUB_TOKEN
+          volumeMounts:
+            - name: app-config-shared
+              mountPath: /app/app-config.yaml
+              subPath: app-config.yaml
+            - name: app-config-shared
+              mountPath: /app/app-config.production.yaml
+              subPath: app-config.production.yaml
+            - name: app-config-aux
+              mountPath: /app/packages/backend-aux/app-config.yaml
+              subPath: app-config.yaml
+          readinessProbe:
+            tcpSocket:
+              port: 7011
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 7011
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+      volumes:
+        - name: app-config-shared
+          configMap:
+            name: app-config-shared
+        - name: app-config-aux
+          configMap:
+            name: app-config-aux
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backstage-aux
+  namespace: backstage
+  labels:
+    app: backstage-aux
+    component: aux
+spec:
+  selector:
+    app: backstage-aux
+  ports:
+    - name: http
+      port: 7011
+      targetPort: 7011
+---
+# ── Proxy / SPA — entrypoint público (7007) ──────────────────
+# Service tipo LoadBalancer expõe a porta externamente.
+# Para on-prem/bare-metal, troque por type: NodePort e adicione nodePort: 3XXXX.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backstage-proxy
+  namespace: backstage
+  labels:
+    app: backstage-proxy
+    component: proxy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backstage-proxy
+  template:
+    metadata:
+      labels:
+        app: backstage-proxy
+        component: proxy
+    spec:
+      initContainers:
+        - name: wait-for-postgres
+          image: postgres:16-alpine
+          command:
+            - sh
+            - -c
+            - until pg_isready -h postgres-proxy -U $(POSTGRES_USER); do echo "aguardando postgres-proxy..."; sleep 2; done
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: backstage-credentials
+                  key: POSTGRES_USER
+      containers:
+        - name: backstage-proxy
+          image: IMAGE_REGISTRY/backstage-proxy:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 7007
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: NODE_OPTIONS
+              value: "--no-node-snapshot"
+            - name: POSTGRES_HOST
+              value: postgres-proxy
+            - name: POSTGRES_PORT
+              value: "5432"
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: backstage-credentials
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: backstage-credentials
+                  key: POSTGRES_PASSWORD
+            - name: BACKSTAGE_AUTH_URL
+              value: http://backstage-auth:7008
+            - name: BACKSTAGE_CORE_URL
+              value: http://backstage-core:7009
+            - name: BACKSTAGE_CONTENT_URL
+              value: http://backstage-content:7010
+            - name: BACKSTAGE_AUX_URL
+              value: http://backstage-aux:7011
+            - name: AUTH_GITHUB_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: backstage-credentials
+                  key: AUTH_GITHUB_CLIENT_ID
+            - name: AUTH_GITHUB_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: backstage-credentials
+                  key: AUTH_GITHUB_CLIENT_SECRET
+            - name: GITHUB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: backstage-credentials
+                  key: GITHUB_TOKEN
+          volumeMounts:
+            - name: app-config-shared
+              mountPath: /app/app-config.yaml
+              subPath: app-config.yaml
+            - name: app-config-shared
+              mountPath: /app/app-config.production.yaml
+              subPath: app-config.production.yaml
+          readinessProbe:
+            tcpSocket:
+              port: 7007
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 7007
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+      volumes:
+        - name: app-config-shared
+          configMap:
+            name: app-config-shared
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backstage-proxy
+  namespace: backstage
+  labels:
+    app: backstage-proxy
+    component: proxy
+spec:
+  type: LoadBalancer
+  selector:
+    app: backstage-proxy
+  ports:
+    - name: http
+      port: 7007
+      targetPort: 7007

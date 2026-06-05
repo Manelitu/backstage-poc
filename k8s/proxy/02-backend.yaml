@@ -1,0 +1,129 @@
+# Substitua IMAGE_REGISTRY pela URL do seu registry (ex: gcr.io/meu-projeto)
+# O Service tipo LoadBalancer expõe a porta 7007 externamente.
+# Para on-prem/bare-metal use type: NodePort e adicione nodePort: 3XXXX.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backstage-proxy
+  namespace: backstage
+  labels:
+    app: backstage-proxy
+    component: proxy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backstage-proxy
+  template:
+    metadata:
+      labels:
+        app: backstage-proxy
+        component: proxy
+    spec:
+      initContainers:
+        - name: wait-for-postgres
+          image: postgres:16-alpine
+          command:
+            - sh
+            - -c
+            - until pg_isready -h postgres-proxy -U $(POSTGRES_USER); do echo "aguardando postgres-proxy..."; sleep 2; done
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: backstage-credentials
+                  key: POSTGRES_USER
+      containers:
+        - name: backstage-proxy
+          image: IMAGE_REGISTRY/backstage-proxy:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 7007
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: NODE_OPTIONS
+              value: "--no-node-snapshot"
+            - name: POSTGRES_HOST
+              value: postgres-proxy
+            - name: POSTGRES_PORT
+              value: "5432"
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: backstage-credentials
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: backstage-credentials
+                  key: POSTGRES_PASSWORD
+            - name: BACKSTAGE_AUTH_URL
+              value: http://backstage-auth:7008
+            - name: BACKSTAGE_CORE_URL
+              value: http://backstage-core:7009
+            - name: BACKSTAGE_CONTENT_URL
+              value: http://backstage-content:7010
+            - name: BACKSTAGE_AUX_URL
+              value: http://backstage-aux:7011
+            - name: AUTH_GITHUB_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: backstage-credentials
+                  key: AUTH_GITHUB_CLIENT_ID
+            - name: AUTH_GITHUB_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: backstage-credentials
+                  key: AUTH_GITHUB_CLIENT_SECRET
+            - name: GITHUB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: backstage-credentials
+                  key: GITHUB_TOKEN
+          volumeMounts:
+            - name: app-config-shared
+              mountPath: /app/app-config.yaml
+              subPath: app-config.yaml
+            - name: app-config-shared
+              mountPath: /app/app-config.production.yaml
+              subPath: app-config.production.yaml
+          readinessProbe:
+            tcpSocket:
+              port: 7007
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 7007
+            initialDelaySeconds: 30
+            periodSeconds: 30
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+      volumes:
+        - name: app-config-shared
+          configMap:
+            name: app-config-shared
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backstage-proxy
+  namespace: backstage
+  labels:
+    app: backstage-proxy
+    component: proxy
+spec:
+  type: LoadBalancer
+  selector:
+    app: backstage-proxy
+  ports:
+    - name: http
+      port: 7007
+      targetPort: 7007

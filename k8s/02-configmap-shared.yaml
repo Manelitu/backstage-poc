@@ -1,0 +1,164 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config-shared
+  namespace: backstage
+data:
+  app-config.yaml: |
+    app:
+      title: Scaffolded Backstage App
+      baseUrl: http://localhost:3000
+      packages: all
+      extensions:
+        - nav-item:search: false
+        - nav-item:user-settings: false
+        - nav-item:catalog: false
+        - nav-item:scaffolder: false
+        - page:catalog:
+            config:
+              path: /
+
+    organization:
+      name: My Company
+
+    backend:
+      baseUrl: http://localhost:7007
+      listen:
+        port: 7007
+      csp:
+        connect-src: ["'self'", 'http:', 'https:']
+      cors:
+        origin: http://localhost:3000
+        methods: [GET, HEAD, PATCH, POST, PUT, DELETE]
+        credentials: true
+      database:
+        client: better-sqlite3
+        connection: ':memory:'
+      discovery:
+        endpoints:
+          - target: 'http://localhost:7008/api/{{pluginId}}'
+            plugins: [auth]
+          - target: 'http://localhost:7009/api/{{pluginId}}'
+            plugins: [catalog, permission, search]
+          - target: 'http://localhost:7010/api/{{pluginId}}'
+            plugins: [scaffolder, techdocs]
+          - target: 'http://localhost:7011/api/{{pluginId}}'
+            plugins: [kubernetes, notifications, signals, mcp-actions]
+      actions:
+        pluginSources:
+          - auth
+          - catalog
+          - scaffolder
+
+    integrations:
+      github:
+        - host: github.com
+          token: ${GITHUB_TOKEN}
+
+    techdocs:
+      builder: 'local'
+      generator:
+        runIn: 'docker'
+      publisher:
+        type: 'local'
+
+    auth:
+      providers:
+        guest: {}
+        github:
+          development:
+            clientId: ${AUTH_GITHUB_CLIENT_ID}
+            clientSecret: ${AUTH_GITHUB_CLIENT_SECRET}
+            callbackUrl: http://localhost:7007/api/auth/github/handler/frame
+            signIn:
+              resolvers:
+                - resolver: usernameMatchingUserEntityName
+          production:
+            clientId: ${AUTH_GITHUB_CLIENT_ID}
+            clientSecret: ${AUTH_GITHUB_CLIENT_SECRET}
+            callbackUrl: http://localhost:7007/api/auth/github/handler/frame
+            signIn:
+              resolvers:
+                - resolver: usernameMatchingUserEntityName
+      experimentalClientIdMetadataDocuments:
+        enabled: false
+
+    scaffolder:
+
+    catalog:
+      import:
+        entityFilename: catalog-info.yaml
+        pullRequestBranchName: backstage-integration
+      rules:
+        - allow: [Component, System, API, Resource, Domain, Location, Group, User, Template]
+      locations:
+        - type: file
+          target: ../../examples/entities.yaml
+        - type: file
+          target: ../../examples/template/template.yaml
+          rules:
+            - allow: [Template]
+        - type: file
+          target: ../../examples/org.yaml
+          rules:
+            - allow: [User, Group, Domain, System]
+        - type: url
+          target: https://github.com/Manelitu/backstage-api-test/blob/main/catalog-info.yaml
+        - type: url
+          target: https://github.com/Manelitu/backstage-poc-domain/blob/main/catalog-info.yaml
+        - type: url
+          target: https://github.com/Manelitu/backstage-poc-system/blob/main/catalog-info.yaml
+
+    kubernetes:
+
+    permission:
+      enabled: true
+
+    mcpActions:
+      name: 'My Company Backstage'
+      description: 'Tools for managing your software catalog, creating new services from templates, and exploring your developer portal'
+
+  app-config.production.yaml: |
+    # TODO: atualize app.baseUrl e backend.baseUrl para a URL real do cluster
+    app:
+      baseUrl: http://localhost:7007
+
+    backend:
+      baseUrl: http://localhost:7007
+      listen:
+        host: '0.0.0.0'
+        port: 7007
+      database:
+        client: pg
+        connection:
+          host: ${POSTGRES_HOST}
+          port: ${POSTGRES_PORT}
+          user: ${POSTGRES_USER}
+          password: ${POSTGRES_PASSWORD}
+      discovery:
+        endpoints:
+          - target: '${BACKSTAGE_AUTH_URL}/api/{{pluginId}}'
+            plugins: [auth]
+          - target: '${BACKSTAGE_CORE_URL}/api/{{pluginId}}'
+            plugins: [catalog, permission, search]
+          - target: '${BACKSTAGE_CONTENT_URL}/api/{{pluginId}}'
+            plugins: [scaffolder, techdocs]
+          - target: '${BACKSTAGE_AUX_URL}/api/{{pluginId}}'
+            plugins: [kubernetes, notifications, signals, mcp-actions]
+
+    auth:
+      providers:
+        guest: {}
+
+    catalog:
+      locations:
+        - type: file
+          target: ./examples/entities.yaml
+        - type: file
+          target: ./examples/template/template.yaml
+          rules:
+            - allow: [Template]
+        - type: file
+          target: ./examples/org.yaml
+          rules:
+            - allow: [User, Group]

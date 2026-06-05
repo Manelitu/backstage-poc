@@ -1,6 +1,15 @@
 # docker-compose.yml — Backstage Multi-Backend
 #
-# Sobe PostgreSQL + quatro feature backends + proxy/SPA em uma rede Docker interna.
+# Cada backend sobe com seu próprio PostgreSQL dedicado, formando pares
+# independentes análogos a pods Kubernetes (backend + sidecar de banco).
+#
+# ── Pares de serviços (pods) ──────────────────────────────────────────────────
+#
+#   postgres-auth    <-> backstage-auth     (porta 7008)
+#   postgres-core    <-> backstage-core     (porta 7009)
+#   postgres-content <-> backstage-content  (porta 7010)
+#   postgres-aux     <-> backstage-aux      (porta 7011)
+#   postgres-proxy   <-> backstage-proxy    (porta 7007, perfil "full")
 #
 # ── Modos de uso ─────────────────────────────────────────────────────────────
 #
@@ -25,27 +34,30 @@
 #   POSTGRES_PASSWORD      (padrão: backstage)
 #   YARN_ENABLE_STRICT_SSL (padrão: true)
 
+x-postgres: &postgres-defaults
+  image: postgres:16-alpine
+  environment:
+    POSTGRES_USER: ${POSTGRES_USER:-backstage}
+    POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-backstage}
+    POSTGRES_DB: backstage
+  healthcheck:
+    test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-backstage}"]
+    interval: 10s
+    timeout: 5s
+    retries: 5
+  restart: unless-stopped
+
 services:
 
-  # ── Banco de dados ────────────────────────────────────────────────────────
-  postgres:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-backstage}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-backstage}
-      POSTGRES_DB: backstage
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-backstage}"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    restart: unless-stopped
+  # ══════════════════════════════════════════════════════════════════════════
+  # POD: Auth (porta 7008)
+  # ══════════════════════════════════════════════════════════════════════════
 
-  # ── Auth (porta 7008) — deve subir primeiro ───────────────────────────────
+  postgres-auth:
+    <<: *postgres-defaults
+    volumes:
+      - postgres_auth_data:/var/lib/postgresql/data
+
   backstage-auth:
     build:
       context: .
@@ -57,7 +69,7 @@ services:
     ports:
       - "7008:7008"
     environment:
-      POSTGRES_HOST: postgres
+      POSTGRES_HOST: postgres-auth
       POSTGRES_PORT: "5432"
       POSTGRES_USER: ${POSTGRES_USER:-backstage}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-backstage}
@@ -72,11 +84,19 @@ services:
       - ./app-config.production.yaml:/app/app-config.production.yaml:ro
       - ./packages/backend-auth/app-config.yaml:/app/packages/backend-auth/app-config.yaml:ro
     depends_on:
-      postgres:
+      postgres-auth:
         condition: service_healthy
     restart: unless-stopped
 
-  # ── Core: Catalog + Permission + Search (porta 7009) ─────────────────────
+  # ══════════════════════════════════════════════════════════════════════════
+  # POD: Core — Catalog + Permission + Search (porta 7009)
+  # ══════════════════════════════════════════════════════════════════════════
+
+  postgres-core:
+    <<: *postgres-defaults
+    volumes:
+      - postgres_core_data:/var/lib/postgresql/data
+
   backstage-core:
     build:
       context: .
@@ -88,7 +108,7 @@ services:
     ports:
       - "7009:7009"
     environment:
-      POSTGRES_HOST: postgres
+      POSTGRES_HOST: postgres-core
       POSTGRES_PORT: "5432"
       POSTGRES_USER: ${POSTGRES_USER:-backstage}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-backstage}
@@ -101,13 +121,21 @@ services:
       - ./app-config.production.yaml:/app/app-config.production.yaml:ro
       - ./packages/backend-core/app-config.yaml:/app/packages/backend-core/app-config.yaml:ro
     depends_on:
-      postgres:
+      postgres-core:
         condition: service_healthy
       backstage-auth:
         condition: service_started
     restart: unless-stopped
 
-  # ── Content: Scaffolder + TechDocs (porta 7010) ───────────────────────────
+  # ══════════════════════════════════════════════════════════════════════════
+  # POD: Content — Scaffolder + TechDocs (porta 7010)
+  # ══════════════════════════════════════════════════════════════════════════
+
+  postgres-content:
+    <<: *postgres-defaults
+    volumes:
+      - postgres_content_data:/var/lib/postgresql/data
+
   backstage-content:
     build:
       context: .
@@ -119,7 +147,7 @@ services:
     ports:
       - "7010:7010"
     environment:
-      POSTGRES_HOST: postgres
+      POSTGRES_HOST: postgres-content
       POSTGRES_PORT: "5432"
       POSTGRES_USER: ${POSTGRES_USER:-backstage}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-backstage}
@@ -132,7 +160,7 @@ services:
       - ./app-config.production.yaml:/app/app-config.production.yaml:ro
       - ./packages/backend-content/app-config.yaml:/app/packages/backend-content/app-config.yaml:ro
     depends_on:
-      postgres:
+      postgres-content:
         condition: service_healthy
       backstage-auth:
         condition: service_started
@@ -140,7 +168,15 @@ services:
         condition: service_started
     restart: unless-stopped
 
-  # ── Aux: Kubernetes + Notifications + Signals + MCP (porta 7011) ──────────
+  # ══════════════════════════════════════════════════════════════════════════
+  # POD: Aux — Kubernetes + Notifications + Signals + MCP (porta 7011)
+  # ══════════════════════════════════════════════════════════════════════════
+
+  postgres-aux:
+    <<: *postgres-defaults
+    volumes:
+      - postgres_aux_data:/var/lib/postgresql/data
+
   backstage-aux:
     build:
       context: .
@@ -152,7 +188,7 @@ services:
     ports:
       - "7011:7011"
     environment:
-      POSTGRES_HOST: postgres
+      POSTGRES_HOST: postgres-aux
       POSTGRES_PORT: "5432"
       POSTGRES_USER: ${POSTGRES_USER:-backstage}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-backstage}
@@ -165,7 +201,7 @@ services:
       - ./app-config.production.yaml:/app/app-config.production.yaml:ro
       - ./packages/backend-aux/app-config.yaml:/app/packages/backend-aux/app-config.yaml:ro
     depends_on:
-      postgres:
+      postgres-aux:
         condition: service_healthy
       backstage-auth:
         condition: service_started
@@ -173,9 +209,18 @@ services:
         condition: service_started
     restart: unless-stopped
 
-  # ── Proxy / SPA host (porta 7007) ─────────────────────────────────────────
-  # Perfil "full": só sobe com `docker compose --profile full up`.
-  # No modo dev use `yarn start:frontend` no lugar (proxy local + webpack).
+  # ══════════════════════════════════════════════════════════════════════════
+  # POD: Proxy / SPA host (porta 7007) — perfil "full"
+  # Só sobe com `docker compose --profile full up`.
+  # No modo dev use `yarn start:frontend` (proxy local + webpack).
+  # ══════════════════════════════════════════════════════════════════════════
+
+  postgres-proxy:
+    <<: *postgres-defaults
+    profiles: [full]
+    volumes:
+      - postgres_proxy_data:/var/lib/postgresql/data
+
   backstage-proxy:
     profiles: [full]
     build:
@@ -188,7 +233,7 @@ services:
     ports:
       - "7007:7007"
     environment:
-      POSTGRES_HOST: postgres
+      POSTGRES_HOST: postgres-proxy
       POSTGRES_PORT: "5432"
       POSTGRES_USER: ${POSTGRES_USER:-backstage}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-backstage}
@@ -200,6 +245,8 @@ services:
       - ./app-config.yaml:/app/app-config.yaml:ro
       - ./app-config.production.yaml:/app/app-config.production.yaml:ro
     depends_on:
+      postgres-proxy:
+        condition: service_healthy
       backstage-auth:
         condition: service_started
       backstage-core:
@@ -211,4 +258,8 @@ services:
     restart: unless-stopped
 
 volumes:
-  postgres_data:
+  postgres_auth_data:
+  postgres_core_data:
+  postgres_content_data:
+  postgres_aux_data:
+  postgres_proxy_data:

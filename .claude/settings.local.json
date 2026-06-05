@@ -38,7 +38,9 @@
       "PowerShell(cargo *)",
       "PowerShell(yarn patch *)",
       "PowerShell(yarn patch-commit *)",
-      "PowerShell(node -e \"const m = require\\('./node_modules/ctrlc-windows'\\); console.log\\('ctrlc-windows loaded OK, ctrlc =', typeof m.ctrlc\\);\" 2>&1)"
+      "PowerShell(node -e \"const m = require\\('./node_modules/ctrlc-windows'\\); console.log\\('ctrlc-windows loaded OK, ctrlc =', typeof m.ctrlc\\);\" 2>&1)",
+      "Bash(Get-ChildItem *)",
+      "Bash(Get-Content *)"
     ]
   }
 }
