@@ -1,42 +1,160 @@
-import { useEffect, useState } from 'react';
+﻿import { useEffect, useState } from 'react';
 import { makeStyles } from '@material-ui/core/styles';
 import Box from '@material-ui/core/Box';
+import Button from '@material-ui/core/Button';
 import Card from '@material-ui/core/Card';
 import CardActionArea from '@material-ui/core/CardActionArea';
+import Checkbox from '@material-ui/core/Checkbox';
+import Dialog from '@material-ui/core/Dialog';
+import DialogActions from '@material-ui/core/DialogActions';
+import DialogContent from '@material-ui/core/DialogContent';
+import DialogTitle from '@material-ui/core/DialogTitle';
 import Divider from '@material-ui/core/Divider';
 import Grid from '@material-ui/core/Grid';
+import IconButton from '@material-ui/core/IconButton';
+import InputAdornment from '@material-ui/core/InputAdornment';
 import Typography from '@material-ui/core/Typography';
+import AddIcon from '@material-ui/icons/Add';
+import AppsIcon from '@material-ui/icons/Apps';
 import BuildIcon from '@material-ui/icons/Build';
 import CategoryIcon from '@material-ui/icons/Category';
+import CloseIcon from '@material-ui/icons/Close';
+import CloudIcon from '@material-ui/icons/Cloud';
+import CodeIcon from '@material-ui/icons/Code';
+import DescriptionIcon from '@material-ui/icons/Description';
+import EmojiEmotionsIcon from '@material-ui/icons/EmojiEmotions';
 import ExtensionIcon from '@material-ui/icons/Extension';
+import GroupIcon from '@material-ui/icons/Group';
+import HistoryIcon from '@material-ui/icons/History';
 import MenuBookIcon from '@material-ui/icons/MenuBook';
+import NotificationsIcon from '@material-ui/icons/Notifications';
+import SearchIcon from '@material-ui/icons/Search';
+import SettingsIcon from '@material-ui/icons/Settings';
+import StarIcon from '@material-ui/icons/Star';
+import TrendingUpIcon from '@material-ui/icons/TrendingUp';
+import TuneIcon from '@material-ui/icons/Tune';
 import { Content, Page } from '@backstage/core-components';
 import { identityApiRef, useApi } from '@backstage/core-plugin-api';
-import { HomePageSearchBar } from '@backstage/plugin-search';
+import { SearchBarBase } from '@backstage/plugin-search-react';
 import {
   HomePageRandomJoke,
-  HomePageRecentlyVisited,
   HomePageStarredEntities,
-  HomePageTopVisited,
 } from '@backstage/plugin-home';
+import { TopVisitedChart } from './TopVisitedChart';
+import { RecentlyVisitedTimeline } from './RecentlyVisitedTimeline';
+import { CatalogStatsWidget } from './CatalogStatsWidget';
 
-// ─── Types ──────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Widget registry â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-type ToolItem = {
-  label: string;
+type WidgetId =
+  | 'starred-entities'
+  | 'catalog-stats'
+  | 'random-joke'
+  | 'top-visited'
+  | 'recently-visited';
+
+type ItemDef = {
+  id: string;
+  title: string;
   description: string;
-  url: string;
   icon: React.ReactNode;
   iconColor: string;
   bgColor: string;
+};
+
+const WIDGET_REGISTRY: ItemDef[] = [
+  {
+    id: 'starred-entities',
+    title: 'Starred Entities',
+    description: 'Your bookmarked catalog items',
+    icon: <StarIcon />,
+    iconColor: '#f57f17',
+    bgColor: '#fff8e1',
+  },
+  {
+    id: 'top-visited',
+    title: 'Most Visited',
+    description: 'Top pages by view count',
+    icon: <TrendingUpIcon />,
+    iconColor: '#2e7d32',
+    bgColor: '#e8f5e9',
+  },
+  {
+    id: 'recently-visited',
+    title: 'Recently Visited',
+    description: 'Your navigation history',
+    icon: <HistoryIcon />,
+    iconColor: '#6a1b9a',
+    bgColor: '#f3e5f5',
+  },
+  {
+    id: 'catalog-stats',
+    title: 'Catalog Overview',
+    description: 'Entity counts by type',
+    icon: <AppsIcon />,
+    iconColor: '#0277bd',
+    bgColor: '#e1f5fe',
+  },
+  {
+    id: 'random-joke',
+    title: 'Random Joke',
+    description: 'A fun programming joke',
+    icon: <EmojiEmotionsIcon />,
+    iconColor: '#558b2f',
+    bgColor: '#f1f8e9',
+  },
+];
+
+const DEFAULT_WIDGETS: WidgetId[] = [
+  'starred-entities',
+  'top-visited',
+  'recently-visited',
+];
+
+const WIDGET_KEY = 'backstage-home-widgets';
+const WIDGET_VALID = new Set<string>(WIDGET_REGISTRY.map(w => w.id));
+
+function loadWidgets(): WidgetId[] {
+  try {
+    const saved = localStorage.getItem(WIDGET_KEY);
+    if (!saved) return DEFAULT_WIDGETS;
+    const parsed: string[] = JSON.parse(saved);
+    const filtered = parsed.filter(id => WIDGET_VALID.has(id)) as WidgetId[];
+    return filtered.length > 0 ? filtered : DEFAULT_WIDGETS;
+  } catch {
+    return DEFAULT_WIDGETS;
+  }
+}
+
+function saveWidgets(ids: WidgetId[]) {
+  localStorage.setItem(WIDGET_KEY, JSON.stringify(ids));
+}
+
+// â”€â”€â”€ Tool registry â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+type ToolId =
+  | 'docs-external'
+  | 'catalog'
+  | 'templates'
+  | 'plugins-external'
+  | 'techdocs'
+  | 'search'
+  | 'apis'
+  | 'org'
+  | 'kubernetes'
+  | 'notifications'
+  | 'settings';
+
+type ToolDef = ItemDef & {
+  id: ToolId;
+  url: string;
   external?: boolean;
 };
 
-// ─── Data ───────────────────────────────────────────────────────────────────
-
-const tools: ToolItem[] = [
+const TOOL_REGISTRY: ToolDef[] = [
   {
-    label: 'Documentação',
+    id: 'docs-external',
+    title: 'Documentação',
     description: 'Guias, tutoriais e referências da plataforma',
     url: 'https://backstage.io/docs',
     icon: <MenuBookIcon fontSize="large" />,
@@ -45,7 +163,8 @@ const tools: ToolItem[] = [
     external: true,
   },
   {
-    label: 'Catálogo',
+    id: 'catalog',
+    title: 'Catálogo',
     description: 'Explore componentes, APIs e serviços',
     url: '/catalog',
     icon: <CategoryIcon fontSize="large" />,
@@ -53,7 +172,8 @@ const tools: ToolItem[] = [
     bgColor: '#e8f5e9',
   },
   {
-    label: 'Templates',
+    id: 'templates',
+    title: 'Templates',
     description: 'Crie novos serviços a partir de templates',
     url: '/create',
     icon: <BuildIcon fontSize="large" />,
@@ -61,7 +181,8 @@ const tools: ToolItem[] = [
     bgColor: '#fff3e0',
   },
   {
-    label: 'Plugins',
+    id: 'plugins-external',
+    title: 'Plugins',
     description: 'Descubra extensões para o seu portal',
     url: 'https://backstage.io/plugins',
     icon: <ExtensionIcon fontSize="large" />,
@@ -69,9 +190,98 @@ const tools: ToolItem[] = [
     bgColor: '#f3e5f5',
     external: true,
   },
+  {
+    id: 'techdocs',
+    title: 'TechDocs',
+    description: 'Documentação técnica dos seus serviços',
+    url: '/docs',
+    icon: <DescriptionIcon fontSize="large" />,
+    iconColor: '#00695c',
+    bgColor: '#e0f2f1',
+  },
+  {
+    id: 'search',
+    title: 'Search',
+    description: 'Busca avançada em todo o portal',
+    url: '/search',
+    icon: <SearchIcon fontSize="large" />,
+    iconColor: '#37474f',
+    bgColor: '#eceff1',
+  },
+  {
+    id: 'apis',
+    title: 'APIs',
+    description: 'Explore as APIs disponíveis no catálogo',
+    url: '/catalog?filters%5Bkind%5D=api',
+    icon: <CodeIcon fontSize="large" />,
+    iconColor: '#4527a0',
+    bgColor: '#ede7f6',
+  },
+  {
+    id: 'org',
+    title: 'Org Chart',
+    description: 'Visualize a estrutura da organização',
+    url: '/org',
+    icon: <GroupIcon fontSize="large" />,
+    iconColor: '#558b2f',
+    bgColor: '#f1f8e9',
+  },
+  {
+    id: 'kubernetes',
+    title: 'Kubernetes',
+    description: 'Monitore workloads no cluster',
+    url: '/kubernetes',
+    icon: <CloudIcon fontSize="large" />,
+    iconColor: '#0277bd',
+    bgColor: '#e1f5fe',
+  },
+  {
+    id: 'notifications',
+    title: 'Notificações',
+    description: 'Alertas e notificações do sistema',
+    url: '/notifications',
+    icon: <NotificationsIcon fontSize="large" />,
+    iconColor: '#c62828',
+    bgColor: '#ffebee',
+  },
+  {
+    id: 'settings',
+    title: 'Configurações',
+    description: 'Preferências da sua conta',
+    url: '/settings',
+    icon: <SettingsIcon fontSize="large" />,
+    iconColor: '#546e7a',
+    bgColor: '#eceff1',
+  },
 ];
 
-// ─── Styles ──────────────────────────────────────────────────────────────────
+const DEFAULT_TOOLS: ToolId[] = [
+  'docs-external',
+  'catalog',
+  'templates',
+  'plugins-external',
+];
+
+const TOOL_KEY = 'backstage-home-tools';
+const TOOL_VALID = new Set<string>(TOOL_REGISTRY.map(t => t.id));
+
+function loadTools(): ToolId[] {
+  try {
+    const saved = localStorage.getItem(TOOL_KEY);
+    if (!saved) return DEFAULT_TOOLS;
+    const parsed: string[] = JSON.parse(saved);
+    const filtered = parsed.filter(id => TOOL_VALID.has(id)) as ToolId[];
+    return filtered.length > 0 ? filtered : DEFAULT_TOOLS;
+  } catch {
+    return DEFAULT_TOOLS;
+  }
+}
+
+function saveTools(ids: ToolId[]) {
+  localStorage.setItem(TOOL_KEY, JSON.stringify(ids));
+}
+
+// â”€â”€â”€ Styles â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const useStyles = makeStyles(theme => ({
   hero: {
@@ -79,7 +289,7 @@ const useStyles = makeStyles(theme => ({
     color: theme.palette.primary.contrastText,
     borderRadius: theme.shape.borderRadius * 3,
     padding: theme.spacing(5, 4, 4),
-    marginBottom: theme.spacing(5),
+    marginBottom: theme.spacing(3),
   },
   heroGreeting: {
     fontWeight: 300,
@@ -93,34 +303,47 @@ const useStyles = makeStyles(theme => ({
   searchSection: {
     display: 'flex',
     justifyContent: 'center',
-    margin: theme.spacing(-3, 0, 2),
+    padding: theme.spacing(3, 0, 4),
   },
   searchInner: {
     width: '100%',
-    maxWidth: 640,
+    maxWidth: 820,
     background: theme.palette.background.paper,
     borderRadius: theme.shape.borderRadius * 6,
     boxShadow: theme.shadows[3],
-    padding: theme.spacing(0.5, 1),
     transition: 'box-shadow 0.2s',
     '&:focus-within': {
       boxShadow: theme.shadows[8],
     },
     '& .MuiInputBase-root': {
       borderRadius: theme.shape.borderRadius * 6,
-      padding: theme.spacing(0.5, 1),
-      fontSize: '1rem',
+      padding: theme.spacing(0, 1),
+      fontSize: '0.95rem',
+      height: 44,
     },
     '& .MuiOutlinedInput-notchedOutline, & fieldset': {
       border: 'none',
     },
+    '& .MuiInputBase-input': {
+      padding: theme.spacing(0, 0.5),
+    },
+  },
+  customizeBar: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: theme.spacing(3),
+    padding: theme.spacing(1.25, 2),
+    borderRadius: theme.shape.borderRadius * 2,
+    border: `1px dashed ${theme.palette.divider}`,
+    background: theme.palette.background.paper,
   },
   sectionRow: {
     display: 'flex',
     alignItems: 'center',
-    gap: theme.spacing(2),
+    gap: theme.spacing(1.5),
     marginBottom: theme.spacing(2),
-    marginTop: theme.spacing(5),
+    marginTop: theme.spacing(3),
   },
   sectionLabel: {
     fontWeight: 700,
@@ -131,6 +354,24 @@ const useStyles = makeStyles(theme => ({
   sectionDivider: {
     flex: 1,
   },
+  // cardWrap: fixed-height flex container that enables inner scroll
+  cardWrap: {
+    display: 'flex',
+    flexDirection: 'column',
+    width: '100%',
+    '& .MuiCard-root, & .MuiPaper-root': {
+      flex: '1 1 0%',
+      display: 'flex',
+      flexDirection: 'column',
+      overflow: 'hidden',
+    },
+    '& .MuiCardContent-root': {
+      flex: '1 1 0%',
+      minHeight: 0,
+      overflowY: 'auto',
+    },
+  },
+  // Quick Action card
   toolCard: {
     height: '100%',
     borderRadius: theme.shape.borderRadius * 2,
@@ -166,9 +407,42 @@ const useStyles = makeStyles(theme => ({
     color: theme.palette.text.secondary,
     lineHeight: 1.4,
   },
+  // Shared selectable card (widget dialog + tool dialog)
+  selectCard: {
+    border: `2px solid ${theme.palette.divider}`,
+    borderRadius: theme.shape.borderRadius * 2,
+    cursor: 'pointer',
+    transition: 'border-color 0.15s, box-shadow 0.15s',
+    '&:hover': { boxShadow: theme.shadows[3] },
+  },
+  selectCardActive: {
+    border: `2px solid ${theme.palette.primary.main}`,
+    borderRadius: theme.shape.borderRadius * 2,
+    cursor: 'pointer',
+    background: `${theme.palette.primary.main}08`,
+    transition: 'border-color 0.15s, box-shadow 0.15s',
+    '&:hover': { boxShadow: theme.shadows[3] },
+  },
+  selectCardBody: {
+    padding: theme.spacing(2),
+  },
+  selectCardHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: theme.spacing(1),
+  },
+  selectIconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: '50%',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 }));
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function getGreeting(): string {
   const hour = new Date().getHours();
@@ -177,9 +451,15 @@ function getGreeting(): string {
   return 'Good evening';
 }
 
-// ─── Sub-components ───────────────────────────────────────────────────────────
+// â”€â”€â”€ Sub-components â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-const SectionHeader = ({ title }: { title: string }) => {
+const SectionHeader = ({
+  title,
+  action,
+}: {
+  title: string;
+  action?: React.ReactNode;
+}) => {
   const classes = useStyles();
   return (
     <Box className={classes.sectionRow}>
@@ -187,11 +467,12 @@ const SectionHeader = ({ title }: { title: string }) => {
         {title}
       </Typography>
       <Divider className={classes.sectionDivider} />
+      {action}
     </Box>
   );
 };
 
-const ToolCard = ({ tool }: { tool: ToolItem }) => {
+const ToolCard = ({ tool }: { tool: ToolDef }) => {
   const classes = useStyles();
   return (
     <Card className={classes.toolCard} elevation={0}>
@@ -211,7 +492,7 @@ const ToolCard = ({ tool }: { tool: ToolItem }) => {
           </Box>
         </Box>
         <Typography variant="subtitle1" className={classes.toolLabel}>
-          {tool.label}
+          {tool.title}
         </Typography>
         <Typography variant="body2" className={classes.toolDescription}>
           {tool.description}
@@ -221,12 +502,150 @@ const ToolCard = ({ tool }: { tool: ToolItem }) => {
   );
 };
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
+// Generic selectable card used in both widget and tool dialogs
+const SelectableCard = ({
+  item,
+  active,
+  onToggle,
+}: {
+  item: ItemDef;
+  active: boolean;
+  onToggle: () => void;
+}) => {
+  const classes = useStyles();
+  return (
+    <Card
+      className={active ? classes.selectCardActive : classes.selectCard}
+      elevation={0}
+      onClick={onToggle}
+    >
+      <Box className={classes.selectCardBody}>
+        <Box className={classes.selectCardHeader}>
+          <Box
+            className={classes.selectIconCircle}
+            style={{ backgroundColor: item.bgColor }}
+          >
+            <Box style={{ color: item.iconColor, display: 'flex', fontSize: 20 }}>
+              {item.icon}
+            </Box>
+          </Box>
+          <Checkbox
+            checked={active}
+            color="primary"
+            size="small"
+            onClick={e => e.stopPropagation()}
+            onChange={onToggle}
+          />
+        </Box>
+        <Typography variant="subtitle2" style={{ fontWeight: 700 }}>
+          {item.title}
+        </Typography>
+        <Typography variant="caption" color="textSecondary">
+          {item.description}
+        </Typography>
+      </Box>
+    </Card>
+  );
+};
+
+const WidgetDialog = ({
+  open,
+  onClose,
+  enabled,
+  onToggle,
+  onReset,
+}: {
+  open: boolean;
+  onClose: () => void;
+  enabled: WidgetId[];
+  onToggle: (id: WidgetId) => void;
+  onReset: () => void;
+}) => (
+  <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+    <DialogTitle>Customize homepage widgets</DialogTitle>
+    <DialogContent dividers>
+      <Typography variant="body2" color="textSecondary" style={{ marginBottom: 16 }}>
+        Choose which widgets appear on your homepage. Changes are saved automatically.
+      </Typography>
+      <Grid container spacing={2}>
+        {WIDGET_REGISTRY.map(widget => (
+          <Grid item xs={6} key={widget.id}>
+            <SelectableCard
+              item={widget}
+              active={enabled.includes(widget.id as WidgetId)}
+              onToggle={() => onToggle(widget.id as WidgetId)}
+            />
+          </Grid>
+        ))}
+      </Grid>
+    </DialogContent>
+    <DialogActions>
+      <Button onClick={onReset} size="small">
+        Restore defaults
+      </Button>
+      <Box flex={1} />
+      <Button onClick={onClose} variant="contained" color="primary">
+        Done
+      </Button>
+    </DialogActions>
+  </Dialog>
+);
+
+const ToolDialog = ({
+  open,
+  onClose,
+  enabled,
+  onToggle,
+  onReset,
+}: {
+  open: boolean;
+  onClose: () => void;
+  enabled: ToolId[];
+  onToggle: (id: ToolId) => void;
+  onReset: () => void;
+}) => (
+  <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+    <DialogTitle>Customize quick actions</DialogTitle>
+    <DialogContent dividers>
+      <Typography variant="body2" color="textSecondary" style={{ marginBottom: 16 }}>
+        Choose which shortcuts appear in Quick Actions. Changes are saved automatically.
+      </Typography>
+      <Grid container spacing={2}>
+        {TOOL_REGISTRY.map(tool => (
+          <Grid item xs={6} key={tool.id}>
+            <SelectableCard
+              item={tool}
+              active={enabled.includes(tool.id)}
+              onToggle={() => onToggle(tool.id)}
+            />
+          </Grid>
+        ))}
+      </Grid>
+    </DialogContent>
+    <DialogActions>
+      <Button onClick={onReset} size="small">
+        Restore defaults
+      </Button>
+      <Box flex={1} />
+      <Button onClick={onClose} variant="contained" color="primary">
+        Done
+      </Button>
+    </DialogActions>
+  </Dialog>
+);
+
+// â”€â”€â”€ Page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export const HomePage = () => {
   const classes = useStyles();
   const identityApi = useApi(identityApiRef);
+
   const [displayName, setDisplayName] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [widgetDialogOpen, setWidgetDialogOpen] = useState(false);
+  const [toolDialogOpen, setToolDialogOpen] = useState(false);
+  const [enabledWidgets, setEnabledWidgets] = useState<WidgetId[]>(loadWidgets);
+  const [enabledTools, setEnabledTools] = useState<ToolId[]>(loadTools);
 
   useEffect(() => {
     identityApi.getProfileInfo().then(({ displayName: name }) => {
@@ -234,10 +653,42 @@ export const HomePage = () => {
     });
   }, [identityApi]);
 
+  const toggleWidget = (id: WidgetId) => {
+    setEnabledWidgets(prev => {
+      const next = prev.includes(id) ? prev.filter(w => w !== id) : [...prev, id];
+      saveWidgets(next);
+      return next;
+    });
+  };
+
+  const resetWidgets = () => {
+    setEnabledWidgets(DEFAULT_WIDGETS);
+    saveWidgets(DEFAULT_WIDGETS);
+  };
+
+  const toggleTool = (id: ToolId) => {
+    setEnabledTools(prev => {
+      const next = prev.includes(id) ? prev.filter(t => t !== id) : [...prev, id];
+      saveTools(next);
+      return next;
+    });
+  };
+
+  const resetTools = () => {
+    setEnabledTools(DEFAULT_TOOLS);
+    saveTools(DEFAULT_TOOLS);
+  };
+
+  const on = (id: WidgetId) => enabledWidgets.includes(id);
+
+  const activeTools = TOOL_REGISTRY.filter(t => enabledTools.includes(t.id));
+  const activityActive = [on('top-visited'), on('recently-visited')].filter(Boolean).length;
+  const hasWorkspace = on('starred-entities') || on('random-joke') || on('catalog-stats');
+
   return (
     <Page themeId="home">
       <Content>
-        {/* ── Hero ── */}
+        {/* â”€â”€ Hero â”€â”€ */}
         <Box className={classes.hero}>
           <Typography variant="h5" className={classes.heroGreeting}>
             {getGreeting()}
@@ -247,44 +698,168 @@ export const HomePage = () => {
           </Typography>
         </Box>
 
-        {/* ── Search ── */}
+        {/* â”€â”€ Search â”€â”€ */}
         <Box className={classes.searchSection}>
           <Box className={classes.searchInner}>
-            <HomePageSearchBar placeholder="Search components, APIs, docs…" />
+            <SearchBarBase
+              value={searchQuery}
+              onChange={setSearchQuery}
+              onSubmit={() => {
+                if (searchQuery.trim())
+                  window.location.href = `/search?query=${encodeURIComponent(searchQuery.trim())}`;
+              }}
+              clearButton={false}
+              placeholder="Search components, APIs, docsâ€¦"
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon fontSize="small" color="action" />
+                  </InputAdornment>
+                ),
+                endAdornment: searchQuery ? (
+                  <InputAdornment position="end">
+                    <IconButton
+                      size="small"
+                      onClick={() => setSearchQuery('')}
+                      aria-label="clear search"
+                    >
+                      <CloseIcon fontSize="small" />
+                    </IconButton>
+                  </InputAdornment>
+                ) : undefined,
+              }}
+            />
           </Box>
         </Box>
 
-        {/* ── Quick Actions ── */}
-        <SectionHeader title="Quick Actions" />
-        <Grid container spacing={3}>
-          {tools.map(tool => (
-            <Grid key={tool.label} item xs={6} md={3}>
-              <ToolCard tool={tool} />
+        {/* â”€â”€ Customize bar â”€â”€ */}
+        <Box className={classes.customizeBar}>
+          <Typography variant="caption" color="textSecondary">
+            {enabledWidgets.length}/{WIDGET_REGISTRY.length} widgets &nbsp;Â·&nbsp;{' '}
+            {enabledTools.length}/{TOOL_REGISTRY.length} actions active
+          </Typography>
+          <Button
+            size="small"
+            startIcon={<AddIcon />}
+            variant="outlined"
+            onClick={() => setWidgetDialogOpen(true)}
+          >
+            Add widget
+          </Button>
+        </Box>
+
+        <WidgetDialog
+          open={widgetDialogOpen}
+          onClose={() => setWidgetDialogOpen(false)}
+          enabled={enabledWidgets}
+          onToggle={toggleWidget}
+          onReset={resetWidgets}
+        />
+
+        <ToolDialog
+          open={toolDialogOpen}
+          onClose={() => setToolDialogOpen(false)}
+          enabled={enabledTools}
+          onToggle={toggleTool}
+          onReset={resetTools}
+        />
+
+        {/* â”€â”€ Quick Actions â”€â”€ */}
+        <SectionHeader
+          title="Quick Actions"
+          action={
+            <IconButton
+              size="small"
+              onClick={() => setToolDialogOpen(true)}
+              title="Customize quick actions"
+            >
+              <TuneIcon fontSize="small" />
+            </IconButton>
+          }
+        />
+        <Grid container spacing={3} alignItems="stretch">
+          {activeTools.map(tool => (
+            <Grid key={tool.id} item xs={6} md={3} style={{ display: 'flex' }}>
+              <Box className={classes.cardWrap} style={{ minHeight: 180 }}>
+                <ToolCard tool={tool} />
+              </Box>
             </Grid>
           ))}
         </Grid>
 
-        {/* ── My Workspace ── */}
-        <SectionHeader title="My Workspace" />
-        <Grid container spacing={3}>
-          <Grid item xs={12} md={8}>
-            <HomePageStarredEntities />
-          </Grid>
-          <Grid item xs={12} md={4}>
-            <HomePageRandomJoke />
-          </Grid>
-        </Grid>
+        {/* â”€â”€ My Workspace â”€â”€ */}
+        {hasWorkspace && (
+          <>
+            <SectionHeader title="My Workspace" />
+            <Grid container spacing={3} alignItems="stretch">
+              {on('starred-entities') && (
+                <Grid item xs={12} style={{ display: 'flex' }}>
+                  <Box className={classes.cardWrap} style={{ minHeight: 300 }}>
+                    <HomePageStarredEntities />
+                  </Box>
+                </Grid>
+              )}
+              {on('random-joke') && (
+                <Grid
+                  item
+                  xs={12}
+                  md={on('catalog-stats') ? 6 : 12}
+                  style={{ display: 'flex' }}
+                >
+                  <Box className={classes.cardWrap} style={{ minHeight: 260 }}>
+                    <HomePageRandomJoke />
+                  </Box>
+                </Grid>
+              )}
+              {on('catalog-stats') && (
+                <Grid
+                  item
+                  xs={12}
+                  md={on('random-joke') ? 6 : 12}
+                  style={{ display: 'flex' }}
+                >
+                  <Box className={classes.cardWrap} style={{ minHeight: 260 }}>
+                    <CatalogStatsWidget />
+                  </Box>
+                </Grid>
+              )}
+            </Grid>
+          </>
+        )}
 
-        {/* ── Recent Activity ── */}
-        <SectionHeader title="Recent Activity" />
-        <Grid container spacing={3}>
-          <Grid item xs={12} md={6}>
-            <HomePageTopVisited />
-          </Grid>
-          <Grid item xs={12} md={6}>
-            <HomePageRecentlyVisited />
-          </Grid>
-        </Grid>
+        {/* â”€â”€ Recent Activity â”€â”€ */}
+        {(on('top-visited') || on('recently-visited')) && (
+          <>
+            <SectionHeader title="Recent Activity" />
+            <Grid container spacing={3} alignItems="stretch">
+              {on('top-visited') && (
+                <Grid
+                  item
+                  xs={12}
+                  md={activityActive === 1 ? 12 : 6}
+                  style={{ display: 'flex' }}
+                >
+                  {/* height (not min/max) gives flex children a definite size â†’ enables scroll */}
+                  <Box className={classes.cardWrap} style={{ height: 460 }}>
+                    <TopVisitedChart />
+                  </Box>
+                </Grid>
+              )}
+              {on('recently-visited') && (
+                <Grid
+                  item
+                  xs={12}
+                  md={activityActive === 1 ? 12 : 6}
+                  style={{ display: 'flex' }}
+                >
+                  <Box className={classes.cardWrap} style={{ height: 460 }}>
+                    <RecentlyVisitedTimeline />
+                  </Box>
+                </Grid>
+              )}
+            </Grid>
+          </>
+        )}
       </Content>
     </Page>
   );

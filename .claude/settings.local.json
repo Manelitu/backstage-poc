@@ -44,7 +44,11 @@
       "PowerShell(Get-ChildItem \"C:\\\\Bradesco Seguros\\\\Test\\\\backstage-poc\\\\packages\" | ForEach-Object { $name = $_.Name; $hasDist = Test-Path \"$\\($_.FullName\\)\\\\dist\"; \"$name - dist: $hasDist\" })",
       "WebFetch(domain:roadie.io)",
       "WebFetch(domain:raw.githubusercontent.com)",
-      "Bash(yarn add *)"
+      "Bash(yarn add *)",
+      "WebFetch(domain:tech-blog.exxcellent.de)",
+      "Bash(grep -iE \"chart|recharts|nivo|victory|apex|d3$\")",
+      "Bash(yarn tsc *)",
+      "Bash(npx tsc *)"
     ]
   }
 }
