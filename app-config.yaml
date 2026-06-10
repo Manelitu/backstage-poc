@@ -11,11 +11,16 @@ app:
     - nav-item:user-settings: false
     - nav-item:catalog: false
     - nav-item:scaffolder: false
+    - nav-item:home: false
 
-    # Configure the catalog index page to be the root page, this is normally mounted on /catalog
-    - page:catalog:
+    # Configure the home page as the root page
+    - page:home:
         config:
           path: /
+
+    # Enable visit tracking for HomePageTopVisited / HomePageRecentlyVisited
+    - api:home/visits: true
+    - app-root-element:home/visit-listener: true
 
 organization:
   name: My Company
@@ -170,6 +175,18 @@ catalog:
 
 kubernetes:
   # see https://backstage.io/docs/features/kubernetes/configuration for kubernetes configuration options
+
+home:
+  recentVisits:
+    filterBy:
+      - field: name
+        operator: contains
+        value: service
+  topVisits:
+    filterBy:
+      - field: hits
+        operator: '>='
+        value: 2
 
 # see https://backstage.io/docs/permissions/getting-started for more on the permission framework
 permission:
