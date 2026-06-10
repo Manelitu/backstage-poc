@@ -40,7 +40,8 @@
       "PowerShell(yarn patch-commit *)",
       "PowerShell(node -e \"const m = require\\('./node_modules/ctrlc-windows'\\); console.log\\('ctrlc-windows loaded OK, ctrlc =', typeof m.ctrlc\\);\" 2>&1)",
       "Bash(Get-ChildItem *)",
-      "Bash(Get-Content *)"
+      "Bash(Get-Content *)",
+      "PowerShell(Get-ChildItem \"C:\\\\Bradesco Seguros\\\\Test\\\\backstage-poc\\\\packages\" | ForEach-Object { $name = $_.Name; $hasDist = Test-Path \"$\\($_.FullName\\)\\\\dist\"; \"$name - dist: $hasDist\" })"
     ]
   }
 }

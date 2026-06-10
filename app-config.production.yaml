@@ -52,6 +52,14 @@ backend:
 auth:
   providers:
     guest: {}
+    github:
+      production:
+        clientId: ${AUTH_GITHUB_CLIENT_ID}
+        clientSecret: ${AUTH_GITHUB_CLIENT_SECRET}
+        callbackUrl: ${AUTH_GITHUB_CALLBACK_URL}
+        signIn:
+          resolvers:
+            - resolver: usernameMatchingUserEntityName
 
 catalog:
   # Overrides the default list locations from app-config.yaml as these contain example data.

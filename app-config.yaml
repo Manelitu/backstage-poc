@@ -107,13 +107,6 @@ auth:
         signIn:
           resolvers:
             - resolver: usernameMatchingUserEntityName
-      production:
-        clientId: ${AUTH_GITHUB_CLIENT_ID}
-        clientSecret: ${AUTH_GITHUB_CLIENT_SECRET}
-        callbackUrl: http://localhost:7007/api/auth/github/handler/frame
-        signIn:
-          resolvers:
-            - resolver: usernameMatchingUserEntityName
   # see https://backstage.io/docs/ai/mcp-actions#client-id-metadata-documents
   # to learn more about client id metadata documents
   experimentalClientIdMetadataDocuments:
