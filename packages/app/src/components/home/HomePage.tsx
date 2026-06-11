@@ -34,6 +34,7 @@ import SearchIcon from '@material-ui/icons/Search';
 import SettingsIcon from '@material-ui/icons/Settings';
 import StarIcon from '@material-ui/icons/Star';
 import TrendingUpIcon from '@material-ui/icons/TrendingUp';
+import EditIcon from '@material-ui/icons/Edit';
 import TuneIcon from '@material-ui/icons/Tune';
 import { Content, Page } from '@backstage/core-components';
 import { identityApiRef, useApi } from '@backstage/core-plugin-api';
@@ -796,9 +797,26 @@ const GroupFolder = ({
           isEditMode ? '' : (
             <Box>
               <Typography style={{ fontWeight: 700, fontSize: '0.8rem' }}>{group.name}</Typography>
-              <Typography style={{ fontSize: '0.73rem', opacity: 0.88, marginTop: 2 }}>
-                {group.items.length} {group.items.length === 1 ? 'ação' : 'ações'}
-              </Typography>
+              {preview.length > 0 && (
+                <Box style={{ marginTop: 4, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  {preview.map(t => t && (
+                    <Typography key={t.id} style={{ fontSize: '0.72rem', opacity: 0.9, display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <Box style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: t.bgColor, flexShrink: 0 }} />
+                      {t.title}
+                    </Typography>
+                  ))}
+                  {group.items.length > 4 && (
+                    <Typography style={{ fontSize: '0.72rem', opacity: 0.7 }}>
+                      +{group.items.length - 4} mais
+                    </Typography>
+                  )}
+                </Box>
+              )}
+              {preview.length === 0 && (
+                <Typography style={{ fontSize: '0.73rem', opacity: 0.7, marginTop: 2 }}>
+                  Grupo vazio
+                </Typography>
+              )}
             </Box>
           )
         }
@@ -1453,9 +1471,11 @@ export const HomePage = () => {
                     <TuneIcon fontSize="small" />
                   </IconButton>
                 </Tooltip>
-                <Button size="small" onClick={() => setIsEditMode(true)}>
-                  Editar
-                </Button>
+                <Tooltip title="Editar ações" arrow>
+                  <IconButton size="small" onClick={() => setIsEditMode(true)}>
+                    <EditIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
               </Box>
             )
           }
