@@ -8,12 +8,12 @@ import { useApi } from '@backstage/core-plugin-api';
 import { catalogApiRef } from '@backstage/plugin-catalog-react';
 
 const KINDS = [
-  { kind: 'Component', color: '#1565c0', bg: '#e3f2fd' },
-  { kind: 'API',       color: '#6a1b9a', bg: '#f3e5f5' },
-  { kind: 'System',    color: '#2e7d32', bg: '#e8f5e9' },
-  { kind: 'Domain',    color: '#e65100', bg: '#fff3e0' },
-  { kind: 'Template',  color: '#00695c', bg: '#e0f2f1' },
-  { kind: 'Group',     color: '#558b2f', bg: '#f1f8e9' },
+  { kind: 'Component', label: 'Componentes', color: '#1565c0', bg: '#e3f2fd' },
+  { kind: 'API',       label: 'APIs',        color: '#6a1b9a', bg: '#f3e5f5' },
+  { kind: 'System',    label: 'Sistemas',    color: '#2e7d32', bg: '#e8f5e9' },
+  { kind: 'Domain',    label: 'Domínios',    color: '#e65100', bg: '#fff3e0' },
+  { kind: 'Template',  label: 'Templates',   color: '#00695c', bg: '#e0f2f1' },
+  { kind: 'Group',     label: 'Grupos',      color: '#558b2f', bg: '#f1f8e9' },
 ];
 
 const useStyles = makeStyles(theme => ({
@@ -63,13 +63,13 @@ export const CatalogStatsWidget = () => {
   }, [catalogApi]);
 
   return (
-    <InfoCard title="Catalog Overview" subheader="Entities by type">
+    <InfoCard title="Visão do Catálogo" subheader="Entidades por tipo">
       {loading ? (
         <Progress />
       ) : (
         <Box className={classes.inner}>
           <Grid container spacing={2}>
-            {KINDS.map(({ kind, color, bg }) => (
+            {KINDS.map(({ kind, label, color, bg }) => (
               <Grid item xs={4} key={kind}>
                 <a
                   className={classes.tile}
@@ -80,7 +80,7 @@ export const CatalogStatsWidget = () => {
                     {counts[kind] ?? 0}
                   </Typography>
                   <Typography className={classes.label} style={{ color }}>
-                    {kind}s
+                    {label}
                   </Typography>
                 </a>
               </Grid>

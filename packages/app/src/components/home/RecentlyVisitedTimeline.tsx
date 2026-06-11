@@ -11,15 +11,15 @@ import { visitsApiRef, type Visit } from '@backstage/plugin-home';
 // ─── Kind colours (from the blog: entity-type aware theming) ─────────────────
 
 const KIND_META: Record<string, { color: string; bg: string; label: string }> = {
-  component: { color: '#1565c0', bg: '#e3f2fd', label: 'Component' },
-  api:       { color: '#6a1b9a', bg: '#f3e5f5', label: 'API'       },
-  system:    { color: '#2e7d32', bg: '#e8f5e9', label: 'System'    },
-  domain:    { color: '#e65100', bg: '#fff3e0', label: 'Domain'    },
-  template:  { color: '#00695c', bg: '#e0f2f1', label: 'Template'  },
-  group:     { color: '#558b2f', bg: '#f1f8e9', label: 'Group'     },
-  user:      { color: '#4527a0', bg: '#ede7f6', label: 'User'      },
+  component: { color: '#1565c0', bg: '#e3f2fd', label: 'Componente' },
+  api:       { color: '#6a1b9a', bg: '#f3e5f5', label: 'API'        },
+  system:    { color: '#2e7d32', bg: '#e8f5e9', label: 'Sistema'    },
+  domain:    { color: '#e65100', bg: '#fff3e0', label: 'Domínio'    },
+  template:  { color: '#00695c', bg: '#e0f2f1', label: 'Template'   },
+  group:     { color: '#558b2f', bg: '#f1f8e9', label: 'Grupo'      },
+  user:      { color: '#4527a0', bg: '#ede7f6', label: 'Usuário'    },
 };
-const DEFAULT_KIND = { color: '#546e7a', bg: '#eceff1', label: 'Page' };
+const DEFAULT_KIND = { color: '#546e7a', bg: '#eceff1', label: 'Página' };
 
 function kindFromPathname(pathname: string) {
   const parts = pathname.split('/').filter(Boolean);
@@ -33,11 +33,11 @@ function relativeTime(timestamp: number): string {
   const m = Math.floor(diff / 60_000);
   const h = Math.floor(diff / 3_600_000);
   const d = Math.floor(diff / 86_400_000);
-  if (m < 1)  return 'Just now';
-  if (m < 60) return `${m}m ago`;
-  if (h < 24) return `${h}h ago`;
-  if (d === 1) return 'Yesterday';
-  return `${d}d ago`;
+  if (m < 1)  return 'Agora';
+  if (m < 60) return `há ${m}m`;
+  if (h < 24) return `há ${h}h`;
+  if (d === 1) return 'Ontem';
+  return `há ${d}d`;
 }
 
 // ─── Styles ──────────────────────────────────────────────────────────────────
@@ -121,14 +121,14 @@ export const RecentlyVisitedTimeline = () => {
   }, [visitsApi]);
 
   return (
-    <InfoCard title="Recently Visited" subheader="Your latest navigation history">
+    <InfoCard title="Visitados Recentemente" subheader="Seu histórico de navegação recente">
       {loading ? (
         <Progress />
       ) : visits.length === 0 ? (
         <EmptyState
           missing="data"
-          title="No visits yet"
-          description="Start navigating to track your recent pages."
+          title="Nenhuma visita ainda"
+          description="Comece a navegar para acompanhar suas páginas recentes."
         />
       ) : (
         <Box className={classes.list}>

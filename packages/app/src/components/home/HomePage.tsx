@@ -1,4 +1,4 @@
-﻿import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { makeStyles } from '@material-ui/core/styles';
 import Box from '@material-ui/core/Box';
 import Button from '@material-ui/core/Button';
@@ -44,7 +44,7 @@ import { TopVisitedChart } from './TopVisitedChart';
 import { RecentlyVisitedTimeline } from './RecentlyVisitedTimeline';
 import { CatalogStatsWidget } from './CatalogStatsWidget';
 
-// â”€â”€â”€ Widget registry â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- Registro de widgets ---
 
 type WidgetId =
   | 'starred-entities'
@@ -65,40 +65,40 @@ type ItemDef = {
 const WIDGET_REGISTRY: ItemDef[] = [
   {
     id: 'starred-entities',
-    title: 'Starred Entities',
-    description: 'Your bookmarked catalog items',
+    title: 'Favoritos',
+    description: 'Seus itens favoritos do catálogo',
     icon: <StarIcon />,
     iconColor: '#f57f17',
     bgColor: '#fff8e1',
   },
   {
     id: 'top-visited',
-    title: 'Most Visited',
-    description: 'Top pages by view count',
+    title: 'Mais Visitados',
+    description: 'Páginas mais acessadas por você',
     icon: <TrendingUpIcon />,
     iconColor: '#2e7d32',
     bgColor: '#e8f5e9',
   },
   {
     id: 'recently-visited',
-    title: 'Recently Visited',
-    description: 'Your navigation history',
+    title: 'Visitados Recentemente',
+    description: 'Seu histórico de navegação',
     icon: <HistoryIcon />,
     iconColor: '#6a1b9a',
     bgColor: '#f3e5f5',
   },
   {
     id: 'catalog-stats',
-    title: 'Catalog Overview',
-    description: 'Entity counts by type',
+    title: 'Visão do Catálogo',
+    description: 'Contagem de entidades por tipo',
     icon: <AppsIcon />,
     iconColor: '#0277bd',
     bgColor: '#e1f5fe',
   },
   {
     id: 'random-joke',
-    title: 'Random Joke',
-    description: 'A fun programming joke',
+    title: 'Piada Aleatória',
+    description: 'Uma piada divertida de programação',
     icon: <EmojiEmotionsIcon />,
     iconColor: '#558b2f',
     bgColor: '#f1f8e9',
@@ -130,7 +130,7 @@ function saveWidgets(ids: WidgetId[]) {
   localStorage.setItem(WIDGET_KEY, JSON.stringify(ids));
 }
 
-// â”€â”€â”€ Tool registry â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- Registro de ações rápidas ---
 
 type ToolId =
   | 'docs-external'
@@ -201,7 +201,7 @@ const TOOL_REGISTRY: ToolDef[] = [
   },
   {
     id: 'search',
-    title: 'Search',
+    title: 'Busca',
     description: 'Busca avançada em todo o portal',
     url: '/search',
     icon: <SearchIcon fontSize="large" />,
@@ -219,7 +219,7 @@ const TOOL_REGISTRY: ToolDef[] = [
   },
   {
     id: 'org',
-    title: 'Org Chart',
+    title: 'Organograma',
     description: 'Visualize a estrutura da organização',
     url: '/org',
     icon: <GroupIcon fontSize="large" />,
@@ -281,7 +281,7 @@ function saveTools(ids: ToolId[]) {
   localStorage.setItem(TOOL_KEY, JSON.stringify(ids));
 }
 
-// â”€â”€â”€ Styles â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- Estilos ---
 
 const useStyles = makeStyles(theme => ({
   hero: {
@@ -354,7 +354,6 @@ const useStyles = makeStyles(theme => ({
   sectionDivider: {
     flex: 1,
   },
-  // cardWrap: fixed-height flex container that enables inner scroll
   cardWrap: {
     display: 'flex',
     flexDirection: 'column',
@@ -371,7 +370,6 @@ const useStyles = makeStyles(theme => ({
       overflowY: 'auto',
     },
   },
-  // Quick Action card
   toolCard: {
     height: '100%',
     borderRadius: theme.shape.borderRadius * 2,
@@ -407,7 +405,6 @@ const useStyles = makeStyles(theme => ({
     color: theme.palette.text.secondary,
     lineHeight: 1.4,
   },
-  // Shared selectable card (widget dialog + tool dialog)
   selectCard: {
     border: `2px solid ${theme.palette.divider}`,
     borderRadius: theme.shape.borderRadius * 2,
@@ -442,16 +439,16 @@ const useStyles = makeStyles(theme => ({
   },
 }));
 
-// â”€â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- Utilitários ---
 
 function getGreeting(): string {
   const hour = new Date().getHours();
-  if (hour < 12) return 'Good morning';
-  if (hour < 18) return 'Good afternoon';
-  return 'Good evening';
+  if (hour < 12) return 'Bom dia';
+  if (hour < 18) return 'Boa tarde';
+  return 'Boa noite';
 }
 
-// â”€â”€â”€ Sub-components â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- Sub-componentes ---
 
 const SectionHeader = ({
   title,
@@ -502,7 +499,6 @@ const ToolCard = ({ tool }: { tool: ToolDef }) => {
   );
 };
 
-// Generic selectable card used in both widget and tool dialogs
 const SelectableCard = ({
   item,
   active,
@@ -562,10 +558,10 @@ const WidgetDialog = ({
   onReset: () => void;
 }) => (
   <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-    <DialogTitle>Customize homepage widgets</DialogTitle>
+    <DialogTitle>Personalizar widgets</DialogTitle>
     <DialogContent dividers>
       <Typography variant="body2" color="textSecondary" style={{ marginBottom: 16 }}>
-        Choose which widgets appear on your homepage. Changes are saved automatically.
+        Escolha quais widgets aparecem na sua homepage. As alterações são salvas automaticamente.
       </Typography>
       <Grid container spacing={2}>
         {WIDGET_REGISTRY.map(widget => (
@@ -581,11 +577,11 @@ const WidgetDialog = ({
     </DialogContent>
     <DialogActions>
       <Button onClick={onReset} size="small">
-        Restore defaults
+        Restaurar padrões
       </Button>
       <Box flex={1} />
       <Button onClick={onClose} variant="contained" color="primary">
-        Done
+        Concluir
       </Button>
     </DialogActions>
   </Dialog>
@@ -605,10 +601,10 @@ const ToolDialog = ({
   onReset: () => void;
 }) => (
   <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-    <DialogTitle>Customize quick actions</DialogTitle>
+    <DialogTitle>Personalizar ações rápidas</DialogTitle>
     <DialogContent dividers>
       <Typography variant="body2" color="textSecondary" style={{ marginBottom: 16 }}>
-        Choose which shortcuts appear in Quick Actions. Changes are saved automatically.
+        Escolha quais atalhos aparecem em Ações Rápidas. As alterações são salvas automaticamente.
       </Typography>
       <Grid container spacing={2}>
         {TOOL_REGISTRY.map(tool => (
@@ -624,17 +620,17 @@ const ToolDialog = ({
     </DialogContent>
     <DialogActions>
       <Button onClick={onReset} size="small">
-        Restore defaults
+        Restaurar padrões
       </Button>
       <Box flex={1} />
       <Button onClick={onClose} variant="contained" color="primary">
-        Done
+        Concluir
       </Button>
     </DialogActions>
   </Dialog>
 );
 
-// â”€â”€â”€ Page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// --- Página principal ---
 
 export const HomePage = () => {
   const classes = useStyles();
@@ -688,17 +684,17 @@ export const HomePage = () => {
   return (
     <Page themeId="home">
       <Content>
-        {/* â”€â”€ Hero â”€â”€ */}
+        {/* Hero */}
         <Box className={classes.hero}>
           <Typography variant="h5" className={classes.heroGreeting}>
             {getGreeting()}
           </Typography>
           <Typography variant="h2" className={classes.heroName}>
-            {displayName || 'Welcome back'}!
+            {displayName || 'Bem-vindo de volta'}!
           </Typography>
         </Box>
 
-        {/* â”€â”€ Search â”€â”€ */}
+        {/* Busca */}
         <Box className={classes.searchSection}>
           <Box className={classes.searchInner}>
             <SearchBarBase
@@ -709,7 +705,7 @@ export const HomePage = () => {
                   window.location.href = `/search?query=${encodeURIComponent(searchQuery.trim())}`;
               }}
               clearButton={false}
-              placeholder="Search components, APIs, docsâ€¦"
+              placeholder="Buscar componentes, APIs, documentação..."
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
@@ -721,7 +717,7 @@ export const HomePage = () => {
                     <IconButton
                       size="small"
                       onClick={() => setSearchQuery('')}
-                      aria-label="clear search"
+                      aria-label="limpar busca"
                     >
                       <CloseIcon fontSize="small" />
                     </IconButton>
@@ -732,11 +728,11 @@ export const HomePage = () => {
           </Box>
         </Box>
 
-        {/* â”€â”€ Customize bar â”€â”€ */}
+        {/* Barra de personalização */}
         <Box className={classes.customizeBar}>
           <Typography variant="caption" color="textSecondary">
-            {enabledWidgets.length}/{WIDGET_REGISTRY.length} widgets &nbsp;Â·&nbsp;{' '}
-            {enabledTools.length}/{TOOL_REGISTRY.length} actions active
+            {enabledWidgets.length}/{WIDGET_REGISTRY.length} widgets &nbsp;·&nbsp;{' '}
+            {enabledTools.length}/{TOOL_REGISTRY.length} ações ativas
           </Typography>
           <Button
             size="small"
@@ -744,7 +740,7 @@ export const HomePage = () => {
             variant="outlined"
             onClick={() => setWidgetDialogOpen(true)}
           >
-            Add widget
+            Adicionar widget
           </Button>
         </Box>
 
@@ -764,14 +760,14 @@ export const HomePage = () => {
           onReset={resetTools}
         />
 
-        {/* â”€â”€ Quick Actions â”€â”€ */}
+        {/* Ações Rápidas */}
         <SectionHeader
-          title="Quick Actions"
+          title="Ações Rápidas"
           action={
             <IconButton
               size="small"
               onClick={() => setToolDialogOpen(true)}
-              title="Customize quick actions"
+              title="Personalizar ações rápidas"
             >
               <TuneIcon fontSize="small" />
             </IconButton>
@@ -787,10 +783,10 @@ export const HomePage = () => {
           ))}
         </Grid>
 
-        {/* â”€â”€ My Workspace â”€â”€ */}
+        {/* Meu Espaço */}
         {hasWorkspace && (
           <>
-            <SectionHeader title="My Workspace" />
+            <SectionHeader title="Meu Espaço" />
             <Grid container spacing={3} alignItems="stretch">
               {on('starred-entities') && (
                 <Grid item xs={12} style={{ display: 'flex' }}>
@@ -827,10 +823,10 @@ export const HomePage = () => {
           </>
         )}
 
-        {/* â”€â”€ Recent Activity â”€â”€ */}
+        {/* Atividade Recente */}
         {(on('top-visited') || on('recently-visited')) && (
           <>
-            <SectionHeader title="Recent Activity" />
+            <SectionHeader title="Atividade Recente" />
             <Grid container spacing={3} alignItems="stretch">
               {on('top-visited') && (
                 <Grid
@@ -839,7 +835,6 @@ export const HomePage = () => {
                   md={activityActive === 1 ? 12 : 6}
                   style={{ display: 'flex' }}
                 >
-                  {/* height (not min/max) gives flex children a definite size â†’ enables scroll */}
                   <Box className={classes.cardWrap} style={{ height: 460 }}>
                     <TopVisitedChart />
                   </Box>

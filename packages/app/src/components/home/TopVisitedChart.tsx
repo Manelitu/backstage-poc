@@ -109,14 +109,14 @@ export const TopVisitedChart = () => {
   const totalHits = visits.reduce((sum, v) => sum + v.hits, 0);
 
   return (
-    <InfoCard title="Most Visited" subheader="Your top pages by view count">
+    <InfoCard title="Mais Visitados" subheader="Suas páginas mais acessadas">
       {loading ? (
         <Progress />
       ) : visits.length === 0 ? (
         <EmptyState
           missing="data"
-          title="No visits yet"
-          description="Start navigating to track your most visited pages."
+          title="Nenhuma visita ainda"
+          description="Comece a navegar para acompanhar suas páginas mais visitadas."
         />
       ) : (
         <Box className={classes.container}>
@@ -126,7 +126,7 @@ export const TopVisitedChart = () => {
             return (
               <Tooltip
                 key={visit.id}
-                title={`${visit.pathname} — ${visit.hits} visits`}
+                title={`${visit.pathname} — ${visit.hits} visita${visit.hits !== 1 ? 's' : ''}`}
                 placement="top"
               >
                 <a
@@ -153,7 +153,7 @@ export const TopVisitedChart = () => {
           <Box className={classes.footer}>
             <TrendingUpIcon style={{ fontSize: 14 }} />
             <Typography variant="caption">
-              {totalHits} total views across {visits.length} pages
+              {totalHits} visualizações em {visits.length} página{visits.length !== 1 ? 's' : ''}
             </Typography>
           </Box>
         </Box>
