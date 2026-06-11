@@ -581,7 +581,7 @@ const useStyles = makeStyles(theme => ({
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
-    '& .MuiSvgIcon-root': { fontSize: '0.5rem' },
+    '& svg': { width: 13, height: 13, flexShrink: 0 },
   },
   groupItemWrap: {
     position: 'relative' as const,
