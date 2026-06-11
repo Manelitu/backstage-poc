@@ -397,11 +397,7 @@ const useStyles = makeStyles(theme => ({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: theme.spacing(3),
-    padding: theme.spacing(2, 2.5),
-    borderRadius: theme.shape.borderRadius * 2,
-    border: `1px solid ${theme.palette.divider}`,
-    background: theme.palette.background.paper,
-    boxShadow: theme.shadows[1],
+    padding: theme.spacing(0, 0.5),
   },
   statPill: {
     display: 'inline-flex',

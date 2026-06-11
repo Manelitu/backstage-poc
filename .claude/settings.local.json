@@ -48,7 +48,8 @@
       "WebFetch(domain:tech-blog.exxcellent.de)",
       "Bash(grep -iE \"chart|recharts|nivo|victory|apex|d3$\")",
       "Bash(yarn tsc *)",
-      "Bash(npx tsc *)"
+      "Bash(npx tsc *)",
+      "Bash(xargs grep -l \"starredEntitiesApiRef\")"
     ]
   }
 }
