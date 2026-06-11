@@ -791,7 +791,7 @@ export const HomePage = () => {
               {on('starred-entities') && (
                 <Grid item xs={12} style={{ display: 'flex' }}>
                   <Box className={classes.cardWrap} style={{ minHeight: 300 }}>
-                    <HomePageStarredEntities />
+                    <HomePageStarredEntities title="Suas Entidades Favoritas" />
                   </Box>
                 </Grid>
               )}
