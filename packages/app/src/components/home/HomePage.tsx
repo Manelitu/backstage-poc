@@ -418,12 +418,28 @@ const useStyles = makeStyles(theme => ({
     width: 76,
     padding: theme.spacing(1, 0.5),
     borderRadius: theme.shape.borderRadius * 2,
-    transition: 'background-color 0.15s, transform 0.15s',
-    cursor: 'pointer',
+    transition: 'background-color 0.15s, transform 0.15s, opacity 0.15s',
+    cursor: 'grab',
+    userSelect: 'none',
     '&:hover': {
       backgroundColor: theme.palette.action.hover,
       transform: 'translateY(-3px)',
     },
+    '&:active': { cursor: 'grabbing' },
+  },
+  actionItemDragging: {
+    opacity: 0.35,
+    transform: 'scale(0.95)',
+    cursor: 'grabbing',
+    '&:hover': { transform: 'scale(0.95)' },
+  },
+  actionItemDragOver: {
+    backgroundColor: `${theme.palette.primary.main}18`,
+    outline: `2px dashed ${theme.palette.primary.main}`,
+    outlineOffset: 3,
+    borderRadius: theme.shape.borderRadius * 2,
+    transform: 'scale(1.08)',
+    '&:hover': { transform: 'scale(1.08)' },
   },
   actionIconWrap: {
     width: 54,
@@ -511,8 +527,30 @@ const SectionHeader = ({
   );
 };
 
-const ActionIcon = ({ tool }: { tool: ToolDef }) => {
+const ActionIcon = ({
+  tool,
+  isDragging,
+  isDragOver,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  onDragEnd,
+}: {
+  tool: ToolDef;
+  isDragging: boolean;
+  isDragOver: boolean;
+  onDragStart: (e: React.DragEvent<HTMLAnchorElement>) => void;
+  onDragOver: (e: React.DragEvent<HTMLAnchorElement>) => void;
+  onDrop: (e: React.DragEvent<HTMLAnchorElement>) => void;
+  onDragEnd: () => void;
+}) => {
   const classes = useStyles();
+  const cls = [
+    classes.actionItem,
+    isDragging ? classes.actionItemDragging : '',
+    isDragOver ? classes.actionItemDragOver : '',
+  ].filter(Boolean).join(' ');
+
   return (
     <Tooltip
       title={
@@ -527,12 +565,19 @@ const ActionIcon = ({ tool }: { tool: ToolDef }) => {
       }
       placement="top"
       arrow
+      disableFocusListener={isDragging}
+      disableHoverListener={isDragging}
     >
       <a
-        className={classes.actionItem}
+        className={cls}
         href={tool.url}
         target={tool.external ? '_blank' : '_self'}
         rel={tool.external ? 'noopener noreferrer' : undefined}
+        draggable
+        onDragStart={onDragStart}
+        onDragOver={onDragOver}
+        onDrop={onDrop}
+        onDragEnd={onDragEnd}
       >
         <Box
           className={classes.actionIconWrap}
@@ -691,6 +736,8 @@ export const HomePage = () => {
   const [toolDialogOpen, setToolDialogOpen] = useState(false);
   const [enabledWidgets, setEnabledWidgets] = useState<WidgetId[]>(loadWidgets);
   const [enabledTools, setEnabledTools] = useState<ToolId[]>(loadTools);
+  const [dragId, setDragId] = useState<ToolId | null>(null);
+  const [dragOverId, setDragOverId] = useState<ToolId | null>(null);
 
   useEffect(() => {
     identityApi.getProfileInfo().then(({ displayName: name }) => {
@@ -724,9 +771,43 @@ export const HomePage = () => {
     saveTools(DEFAULT_TOOLS);
   };
 
+  const handleDragStart = (e: React.DragEvent, id: ToolId) => {
+    e.dataTransfer.setData('text/plain', id);
+    e.dataTransfer.effectAllowed = 'move';
+    setDragId(id);
+  };
+
+  const handleDragOver = (e: React.DragEvent, id: ToolId) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (id !== dragId) setDragOverId(id);
+  };
+
+  const handleDrop = (e: React.DragEvent, targetId: ToolId) => {
+    e.preventDefault();
+    if (!dragId || dragId === targetId) { setDragId(null); setDragOverId(null); return; }
+    setEnabledTools(prev => {
+      const from = prev.indexOf(dragId);
+      const to = prev.indexOf(targetId);
+      if (from === -1 || to === -1) return prev;
+      const next = [...prev];
+      next.splice(from, 1);
+      next.splice(to, 0, dragId);
+      saveTools(next);
+      return next;
+    });
+    setDragId(null);
+    setDragOverId(null);
+  };
+
+  const handleDragEnd = () => { setDragId(null); setDragOverId(null); };
+
   const on = (id: WidgetId) => enabledWidgets.includes(id);
 
-  const activeTools = TOOL_REGISTRY.filter(t => enabledTools.includes(t.id));
+  // preserve drag-reordered sequence
+  const activeTools = enabledTools
+    .map(id => TOOL_REGISTRY.find(t => t.id === id))
+    .filter((t): t is ToolDef => t !== undefined);
   const activityActive = [on('top-visited'), on('recently-visited')].filter(Boolean).length;
   const hasWorkspace = on('starred-entities') || on('random-joke') || on('catalog-stats');
 
@@ -822,9 +903,22 @@ export const HomePage = () => {
             </IconButton>
           }
         />
-        <Box className={classes.actionsGrid}>
+        <Box
+          className={classes.actionsGrid}
+          onDragOver={e => e.preventDefault()}
+          onDrop={() => { setDragId(null); setDragOverId(null); }}
+        >
           {activeTools.map(tool => (
-            <ActionIcon key={tool.id} tool={tool} />
+            <ActionIcon
+              key={tool.id}
+              tool={tool}
+              isDragging={dragId === tool.id}
+              isDragOver={dragOverId === tool.id}
+              onDragStart={e => handleDragStart(e, tool.id)}
+              onDragOver={e => handleDragOver(e, tool.id)}
+              onDrop={e => handleDrop(e, tool.id)}
+              onDragEnd={handleDragEnd}
+            />
           ))}
         </Box>
 
