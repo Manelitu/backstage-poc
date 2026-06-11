@@ -17,6 +17,7 @@ import IconButton from '@material-ui/core/IconButton';
 import InputAdornment from '@material-ui/core/InputAdornment';
 import Typography from '@material-ui/core/Typography';
 import AddIcon from '@material-ui/icons/Add';
+import WidgetsIcon from '@material-ui/icons/Widgets';
 import AppsIcon from '@material-ui/icons/Apps';
 import BuildIcon from '@material-ui/icons/Build';
 import CategoryIcon from '@material-ui/icons/Category';
@@ -39,10 +40,8 @@ import TuneIcon from '@material-ui/icons/Tune';
 import { Content, Page } from '@backstage/core-components';
 import { identityApiRef, useApi } from '@backstage/core-plugin-api';
 import { SearchBarBase } from '@backstage/plugin-search-react';
-import {
-  HomePageRandomJoke,
-  HomePageStarredEntities,
-} from '@backstage/plugin-home';
+import { HomePageRandomJoke } from '@backstage/plugin-home';
+import { StarredEntitiesWidget } from './StarredEntitiesWidget';
 import { TopVisitedChart } from './TopVisitedChart';
 import { RecentlyVisitedTimeline } from './RecentlyVisitedTimeline';
 import { CatalogStatsWidget } from './CatalogStatsWidget';
@@ -324,7 +323,7 @@ const useStyles = makeStyles(theme => ({
     borderRadius: theme.shape.borderRadius * 3,
     padding: theme.spacing(5, 4, 4),
     marginBottom: theme.spacing(3),
-    boxShadow: theme.shadows[4],
+    boxShadow: theme.shadows[2],
     '&::before': {
       content: '""',
       position: 'absolute',
@@ -374,10 +373,11 @@ const useStyles = makeStyles(theme => ({
     maxWidth: 820,
     background: theme.palette.background.paper,
     borderRadius: theme.shape.borderRadius * 6,
-    boxShadow: theme.shadows[3],
-    transition: 'box-shadow 0.2s',
+    boxShadow: theme.shadows[1],
+    transition: 'border-color 0.2s, box-shadow 0.2s',
     '&:focus-within': {
-      boxShadow: theme.shadows[8],
+      boxShadow: theme.shadows[3],
+      borderColor: theme.palette.primary.main,
     },
     '& .MuiInputBase-root': {
       borderRadius: theme.shape.borderRadius * 6,
@@ -397,10 +397,36 @@ const useStyles = makeStyles(theme => ({
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: theme.spacing(3),
-    padding: theme.spacing(1.25, 2),
+    padding: theme.spacing(2, 2.5),
     borderRadius: theme.shape.borderRadius * 2,
-    border: `1px dashed ${theme.palette.divider}`,
+    border: `1px solid ${theme.palette.divider}`,
     background: theme.palette.background.paper,
+    boxShadow: theme.shadows[1],
+  },
+  statPill: {
+    display: 'inline-flex',
+    alignItems: 'baseline',
+    gap: 5,
+    borderRadius: 20,
+    padding: '3px 10px',
+    border: `1px solid transparent`,
+  },
+  statNum: {
+    fontWeight: 800,
+    fontSize: '0.8rem',
+    lineHeight: 1.5,
+  },
+  statUnit: {
+    fontSize: '0.69rem',
+    color: theme.palette.text.secondary,
+    fontWeight: 500,
+  },
+  statSep: {
+    color: theme.palette.divider,
+    userSelect: 'none' as const,
+    fontSize: '1rem',
+    lineHeight: 1,
+    alignSelf: 'center',
   },
   sectionRow: {
     display: 'flex',
@@ -427,6 +453,7 @@ const useStyles = makeStyles(theme => ({
       display: 'flex',
       flexDirection: 'column',
       overflow: 'hidden',
+      boxShadow: theme.shadows[1],
     },
     '& .MuiCardContent-root': {
       flex: '1 1 0%',
@@ -462,7 +489,6 @@ const useStyles = makeStyles(theme => ({
     cursor: 'pointer',
     zIndex: 20,
     border: `2.5px solid ${theme.palette.background.paper}`,
-    boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
     transition: 'transform 0.1s',
     '&:hover': { transform: 'scale(1.2)' },
     '& svg': { fontSize: '0.6rem' },
@@ -548,10 +574,7 @@ const useStyles = makeStyles(theme => ({
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.10)',
-    transition: 'box-shadow 0.15s',
     '& .MuiSvgIcon-root': { fontSize: '1.6rem' },
-    '$actionItem:hover &': { boxShadow: '0 4px 14px rgba(0,0,0,0.18)' },
   },
   actionLabel: {
     fontSize: '0.72rem',
@@ -573,8 +596,6 @@ const useStyles = makeStyles(theme => ({
     padding: 7,
     gap: 3,
     backgroundColor: theme.palette.action.selected,
-    boxShadow: '0 2px 8px rgba(0,0,0,0.10)',
-    transition: 'box-shadow 0.15s',
   },
   folderMiniIcon: {
     borderRadius: 5,
@@ -610,16 +631,14 @@ const useStyles = makeStyles(theme => ({
     border: `2px solid ${theme.palette.divider}`,
     borderRadius: theme.shape.borderRadius * 2,
     cursor: 'pointer',
-    transition: 'border-color 0.15s, box-shadow 0.15s',
-    '&:hover': { boxShadow: theme.shadows[3] },
+    transition: 'border-color 0.15s',
   },
   selectCardActive: {
     border: `2px solid ${theme.palette.primary.main}`,
     borderRadius: theme.shape.borderRadius * 2,
     cursor: 'pointer',
     background: `${theme.palette.primary.main}08`,
-    transition: 'border-color 0.15s, box-shadow 0.15s',
-    '&:hover': { boxShadow: theme.shadows[3] },
+    transition: 'border-color 0.15s',
   },
   selectCardBody: {
     padding: theme.spacing(2),
@@ -1393,19 +1412,48 @@ export const HomePage = () => {
 
         {/* Barra de personalização */}
         <Box className={classes.customizeBar}>
-          <Typography variant="caption" color="textSecondary">
-            {enabledWidgets.length}/{WIDGET_REGISTRY.length} widgets &nbsp;·&nbsp;{' '}
-            {allEnabled.length}/{TOOL_REGISTRY.length} ações &nbsp;·&nbsp;{' '}
-            {layout.groups.length} {layout.groups.length === 1 ? 'grupo' : 'grupos'}
-          </Typography>
-          <Button
-            size="small"
-            startIcon={<AddIcon />}
-            variant="outlined"
-            onClick={() => setWidgetDialogOpen(true)}
-          >
-            Adicionar widget
-          </Button>
+          <Box style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Box
+              className={classes.statPill}
+              style={{ backgroundColor: 'rgba(2,119,189,0.07)', borderColor: 'rgba(2,119,189,0.18)' }}
+            >
+              <Typography className={classes.statNum} style={{ color: '#0277bd' }}>
+                {enabledWidgets.length}/{WIDGET_REGISTRY.length}
+              </Typography>
+              <Typography className={classes.statUnit}>widgets</Typography>
+            </Box>
+            <Typography className={classes.statSep}>·</Typography>
+            <Box
+              className={classes.statPill}
+              style={{ backgroundColor: 'rgba(46,125,50,0.07)', borderColor: 'rgba(46,125,50,0.18)' }}
+            >
+              <Typography className={classes.statNum} style={{ color: '#2e7d32' }}>
+                {allEnabled.length}/{TOOL_REGISTRY.length}
+              </Typography>
+              <Typography className={classes.statUnit}>ações</Typography>
+            </Box>
+            {layout.groups.length > 0 && (
+              <>
+                <Typography className={classes.statSep}>·</Typography>
+                <Box
+                  className={classes.statPill}
+                  style={{ backgroundColor: 'rgba(0,105,92,0.07)', borderColor: 'rgba(0,105,92,0.18)' }}
+                >
+                  <Typography className={classes.statNum} style={{ color: '#00695c' }}>
+                    {layout.groups.length}
+                  </Typography>
+                  <Typography className={classes.statUnit}>
+                    {layout.groups.length === 1 ? 'grupo' : 'grupos'}
+                  </Typography>
+                </Box>
+              </>
+            )}
+          </Box>
+          <Tooltip title="Gerenciar widgets" arrow>
+            <IconButton size="small" onClick={() => setWidgetDialogOpen(true)}>
+              <WidgetsIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
         </Box>
 
         <WidgetDialog
@@ -1536,7 +1584,7 @@ export const HomePage = () => {
               {on('starred-entities') && (
                 <Grid item xs={12} style={{ display: 'flex' }}>
                   <Box className={classes.cardWrap} style={{ minHeight: 300 }}>
-                    <HomePageStarredEntities title="Suas Entidades Favoritas" />
+                    <StarredEntitiesWidget />
                   </Box>
                 </Grid>
               )}
