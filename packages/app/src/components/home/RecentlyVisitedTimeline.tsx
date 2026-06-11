@@ -10,6 +10,24 @@ import { visitsApiRef, type Visit } from '@backstage/plugin-home';
 
 // ─── Kind colours (from the blog: entity-type aware theming) ─────────────────
 
+const VISIT_NAME_MAP: Record<string, string> = {
+  'catalog':            'Catálogo',
+  'search':             'Buscar',
+  'settings':           'Configurações',
+  'catalog-graph':      'Grafo do Catálogo',
+  'scaffolder':         'Criar Serviço',
+  'home':               'Início',
+  'kubernetes':         'Kubernetes',
+  'techdocs':           'Documentação',
+  'notifications':      'Notificações',
+  'bradesco seguros developer portal': 'Portal do Desenvolvedor',
+};
+
+function translateVisitName(name: string): string {
+  const key = name.toLowerCase().trim();
+  return VISIT_NAME_MAP[key] ?? name;
+}
+
 const KIND_META: Record<string, { color: string; bg: string; label: string }> = {
   component: { color: '#1565c0', bg: '#e3f2fd', label: 'Componente' },
   api:       { color: '#6a1b9a', bg: '#f3e5f5', label: 'API'        },
@@ -152,7 +170,7 @@ export const RecentlyVisitedTimeline = () => {
                   style={{ backgroundColor: kind.color }}
                 />
                 <Box className={classes.content}>
-                  <Typography className={classes.name}>{visit.name}</Typography>
+                  <Typography className={classes.name}>{translateVisitName(visit.name)}</Typography>
                   <Box className={classes.meta}>
                     <Chip
                       label={kind.label}

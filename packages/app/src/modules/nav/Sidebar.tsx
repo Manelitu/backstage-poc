@@ -14,20 +14,37 @@ import { SidebarSearchModal } from '@backstage/plugin-search';
 import { UserSettingsSignInAvatar } from '@backstage/plugin-user-settings';
 import { NotificationsSidebarItem } from '@backstage/plugin-notifications';
 
+const NAV_LABELS: Record<string, string> = {
+  'page:home':           'Início',
+  'page:catalog':        'Catálogo',
+  'page:scaffolder':     'Criar Serviço',
+  'page:catalog-graph':  'Grafo do Catálogo',
+  'page:user-settings':  'Configurações',
+  'page:app-visualizer': 'Visualizador',
+  'page:kubernetes':     'Kubernetes',
+  'page:notifications':  'Notificações',
+  'page:search':         'Buscar',
+  'page:techdocs':       'Documentação',
+  'page:tech-radar':     'Tech Radar',
+};
+
 export const SidebarContent = NavContentBlueprint.make({
   params: {
     component: ({ navItems }) => {
       const nav = navItems.withComponent(item => (
-        <SidebarItem icon={() => item.icon} to={item.href} text={item.title} />
+        <SidebarItem
+          icon={() => item.icon}
+          to={item.href}
+          text={NAV_LABELS[item.id] ?? item.title}
+        />
       ));
 
-      // Skipped items
-      nav.take('page:search'); // Using search modal instead
+      nav.take('page:search'); // using search modal instead
 
       return (
         <Sidebar>
           <SidebarLogo />
-          <SidebarGroup label="Search" icon={<SearchIcon />} to="/search">
+          <SidebarGroup label="Buscar" icon={<SearchIcon />} to="/search">
             <SidebarSearchModal />
           </SidebarGroup>
           <SidebarDivider />
@@ -45,7 +62,7 @@ export const SidebarContent = NavContentBlueprint.make({
           <NotificationsSidebarItem />
           <SidebarDivider />
           <SidebarGroup
-            label="Settings"
+            label="Configurações"
             icon={<UserSettingsSignInAvatar />}
             to="/settings"
           >

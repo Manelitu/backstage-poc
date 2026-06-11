@@ -8,6 +8,24 @@ import { EmptyState, InfoCard, Progress } from '@backstage/core-components';
 import { useApi } from '@backstage/core-plugin-api';
 import { visitsApiRef, type Visit } from '@backstage/plugin-home';
 
+const VISIT_NAME_MAP: Record<string, string> = {
+  'catalog':            'Catálogo',
+  'search':             'Buscar',
+  'settings':           'Configurações',
+  'catalog-graph':      'Grafo do Catálogo',
+  'scaffolder':         'Criar Serviço',
+  'home':               'Início',
+  'kubernetes':         'Kubernetes',
+  'techdocs':           'Documentação',
+  'notifications':      'Notificações',
+  'bradesco seguros developer portal': 'Portal do Desenvolvedor',
+};
+
+function translateVisitName(name: string): string {
+  const key = name.toLowerCase().trim();
+  return VISIT_NAME_MAP[key] ?? name;
+}
+
 const BAR_COLORS = [
   '#1565c0',
   '#1976d2',
@@ -142,7 +160,7 @@ export const TopVisitedChart = () => {
                 >
                   <Typography className={classes.rank}>#{i + 1}</Typography>
                   <Typography className={classes.label}>
-                    {shortName(visit.name)}
+                    {shortName(translateVisitName(visit.name))}
                   </Typography>
                   <Box className={classes.barTrack}>
                     <Box
