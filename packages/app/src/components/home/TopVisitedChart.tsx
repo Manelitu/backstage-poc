@@ -18,7 +18,14 @@ const BAR_COLORS = [
 ];
 
 const useStyles = makeStyles(theme => ({
+  cardContent: {
+    overflow: 'hidden',
+    display: 'flex',
+    flexDirection: 'column',
+  },
   container: {
+    flex: '1 1 0%',
+    minHeight: 0,
     padding: theme.spacing(2, 2.5),
     overflowY: 'auto',
   },
@@ -109,7 +116,7 @@ export const TopVisitedChart = () => {
   const totalHits = visits.reduce((sum, v) => sum + v.hits, 0);
 
   return (
-    <InfoCard title="Mais Visitados" subheader="Suas páginas mais acessadas">
+    <InfoCard noPadding variant="fullHeight" cardClassName={classes.cardContent} title="Mais Visitados" subheader="Suas páginas mais acessadas">
       {loading ? (
         <Progress />
       ) : visits.length === 0 ? (

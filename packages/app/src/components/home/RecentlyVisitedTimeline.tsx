@@ -43,7 +43,14 @@ function relativeTime(timestamp: number): string {
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
 const useStyles = makeStyles(theme => ({
+  cardContent: {
+    overflow: 'hidden',
+    display: 'flex',
+    flexDirection: 'column',
+  },
   list: {
+    flex: '1 1 0%',
+    minHeight: 0,
     padding: theme.spacing(1, 2.5, 2),
     overflowY: 'auto',
   },
@@ -121,7 +128,7 @@ export const RecentlyVisitedTimeline = () => {
   }, [visitsApi]);
 
   return (
-    <InfoCard title="Visitados Recentemente" subheader="Seu histórico de navegação recente">
+    <InfoCard noPadding variant="fullHeight" cardClassName={classes.cardContent} title="Visitados Recentemente" subheader="Seu histórico de navegação recente">
       {loading ? (
         <Progress />
       ) : visits.length === 0 ? (
