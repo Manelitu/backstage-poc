@@ -4,7 +4,10 @@ import Box from '@material-ui/core/Box';
 import Button from '@material-ui/core/Button';
 import Card from '@material-ui/core/Card';
 import Checkbox from '@material-ui/core/Checkbox';
+import TextField from '@material-ui/core/TextField';
 import Tooltip from '@material-ui/core/Tooltip';
+import CreateNewFolderIcon from '@material-ui/icons/CreateNewFolder';
+import FolderIcon from '@material-ui/icons/Folder';
 import Dialog from '@material-ui/core/Dialog';
 import DialogActions from '@material-ui/core/DialogActions';
 import DialogContent from '@material-ui/core/DialogContent';
@@ -262,23 +265,52 @@ const DEFAULT_TOOLS: ToolId[] = [
   'plugins-external',
 ];
 
-const TOOL_KEY = 'backstage-home-tools';
 const TOOL_VALID = new Set<string>(TOOL_REGISTRY.map(t => t.id));
 
-function loadTools(): ToolId[] {
-  try {
-    const saved = localStorage.getItem(TOOL_KEY);
-    if (!saved) return DEFAULT_TOOLS;
-    const parsed: string[] = JSON.parse(saved);
-    const filtered = parsed.filter(id => TOOL_VALID.has(id)) as ToolId[];
-    return filtered.length > 0 ? filtered : DEFAULT_TOOLS;
-  } catch {
-    return DEFAULT_TOOLS;
-  }
+// --- Group-aware layout ---
+
+type ToolGroup = {
+  id: string;
+  name: string;
+  items: ToolId[];
+};
+
+type ToolLayout = {
+  ungrouped: ToolId[];
+  groups: ToolGroup[];
+};
+
+const DEFAULT_LAYOUT: ToolLayout = { ungrouped: DEFAULT_TOOLS, groups: [] };
+const LAYOUT_KEY = 'backstage-home-layout-v2';
+const LEGACY_TOOL_KEY = 'backstage-home-tools';
+
+function allLayoutTools(layout: ToolLayout): ToolId[] {
+  return [...layout.ungrouped, ...layout.groups.flatMap(g => g.items)];
 }
 
-function saveTools(ids: ToolId[]) {
-  localStorage.setItem(TOOL_KEY, JSON.stringify(ids));
+function loadLayout(): ToolLayout {
+  try {
+    const raw = localStorage.getItem(LAYOUT_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as ToolLayout;
+      if (Array.isArray(parsed.ungrouped) && Array.isArray(parsed.groups)) return parsed;
+    }
+    // migrate from legacy key
+    const legacy = localStorage.getItem(LEGACY_TOOL_KEY);
+    if (legacy) {
+      const ids = (JSON.parse(legacy) as string[]).filter(id => TOOL_VALID.has(id)) as ToolId[];
+      return { ungrouped: ids.length ? ids : DEFAULT_TOOLS, groups: [] };
+    }
+  } catch { /* */ }
+  return DEFAULT_LAYOUT;
+}
+
+function saveLayout(layout: ToolLayout) {
+  localStorage.setItem(LAYOUT_KEY, JSON.stringify(layout));
+}
+
+function generateGroupId(): string {
+  return `grp_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
 }
 
 // --- Estilos ---
@@ -402,6 +434,40 @@ const useStyles = makeStyles(theme => ({
       overflowY: 'auto',
     },
   },
+  // ── Edit mode ──────────────────────────────────────────────────────────
+  '@keyframes iconWiggle': {
+    '0%, 100%': { transform: 'rotate(-2.5deg)' },
+    '50%':       { transform: 'rotate(2.5deg)'  },
+  },
+  iconCell: {
+    position: 'relative' as const,
+    display: 'inline-flex',
+  },
+  iconCellWiggle: {
+    animation: '$iconWiggle 0.18s ease-in-out infinite',
+    transformOrigin: '50% 28%',
+  },
+  editBadge: {
+    position: 'absolute' as const,
+    top: 2,
+    right: 2,
+    width: 20,
+    height: 20,
+    borderRadius: '50%',
+    backgroundColor: theme.palette.error.main,
+    color: '#fff',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer',
+    zIndex: 20,
+    border: `2.5px solid ${theme.palette.background.paper}`,
+    boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
+    transition: 'transform 0.1s',
+    '&:hover': { transform: 'scale(1.2)' },
+    '& svg': { fontSize: '0.6rem' },
+  },
+  // ── Grid ───────────────────────────────────────────────────────────────
   actionsGrid: {
     display: 'flex',
     flexWrap: 'wrap',
@@ -415,15 +481,14 @@ const useStyles = makeStyles(theme => ({
     gap: theme.spacing(0.75),
     textDecoration: 'none',
     color: 'inherit',
-    width: 76,
+    width: 90,
     padding: theme.spacing(1, 0.5),
     borderRadius: theme.shape.borderRadius * 2,
-    transition: 'background-color 0.15s, transform 0.15s, opacity 0.15s',
+    transition: 'background-color 0.15s, opacity 0.15s',
     cursor: 'grab',
     userSelect: 'none',
     '&:hover': {
       backgroundColor: theme.palette.action.hover,
-      transform: 'translateY(-3px)',
     },
     '&:active': { cursor: 'grabbing' },
   },
@@ -431,37 +496,78 @@ const useStyles = makeStyles(theme => ({
     opacity: 0.35,
     transform: 'scale(0.95)',
     cursor: 'grabbing',
-    '&:hover': { transform: 'scale(0.95)' },
   },
   actionItemDragOver: {
     backgroundColor: `${theme.palette.primary.main}18`,
     outline: `2px dashed ${theme.palette.primary.main}`,
     outlineOffset: 3,
     borderRadius: theme.shape.borderRadius * 2,
-    transform: 'scale(1.08)',
-    '&:hover': { transform: 'scale(1.08)' },
+    transform: 'scale(1.06)',
   },
   actionIconWrap: {
-    width: 54,
-    height: 54,
-    borderRadius: 14,
+    width: 64,
+    height: 64,
+    borderRadius: 16,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     boxShadow: '0 2px 8px rgba(0,0,0,0.10)',
     transition: 'box-shadow 0.15s',
-    '& .MuiSvgIcon-root': { fontSize: '1.4rem' },
+    '& .MuiSvgIcon-root': { fontSize: '1.6rem' },
     '$actionItem:hover &': { boxShadow: '0 4px 14px rgba(0,0,0,0.18)' },
   },
   actionLabel: {
-    fontSize: '0.7rem',
+    fontSize: '0.72rem',
     fontWeight: 600,
     textAlign: 'center',
     lineHeight: 1.25,
-    maxWidth: 70,
+    maxWidth: 84,
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',
+  },
+  folderIconWrap: {
+    width: 64,
+    height: 64,
+    borderRadius: 16,
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gridTemplateRows: '1fr 1fr',
+    padding: 7,
+    gap: 3,
+    backgroundColor: theme.palette.action.selected,
+    boxShadow: '0 2px 8px rgba(0,0,0,0.10)',
+    transition: 'box-shadow 0.15s',
+  },
+  folderMiniIcon: {
+    borderRadius: 6,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    '& .MuiSvgIcon-root': { fontSize: '0.78rem' },
+  },
+  groupItemWrap: {
+    position: 'relative' as const,
+    display: 'inline-flex',
+    '&:hover $groupRemoveBtn': { opacity: 1 },
+  },
+  groupRemoveBtn: {
+    position: 'absolute' as const,
+    top: -4,
+    right: -2,
+    width: 20,
+    height: 20,
+    minWidth: 0,
+    padding: 0,
+    borderRadius: '50%',
+    backgroundColor: theme.palette.error.main,
+    color: '#fff',
+    opacity: 0,
+    transition: 'opacity 0.15s',
+    zIndex: 10,
+    '&:hover': { backgroundColor: theme.palette.error.dark, opacity: 1 },
+    '& .MuiSvgIcon-root': { fontSize: '0.72rem' },
   },
   selectCard: {
     border: `2px solid ${theme.palette.divider}`,
@@ -531,6 +637,9 @@ const ActionIcon = ({
   tool,
   isDragging,
   isDragOver,
+  isEditMode = false,
+  editDelay = 0,
+  onRemove,
   onDragStart,
   onDragOver,
   onDrop,
@@ -539,6 +648,9 @@ const ActionIcon = ({
   tool: ToolDef;
   isDragging: boolean;
   isDragOver: boolean;
+  isEditMode?: boolean;
+  editDelay?: number;
+  onRemove?: () => void;
   onDragStart: (e: React.DragEvent<HTMLAnchorElement>) => void;
   onDragOver: (e: React.DragEvent<HTMLAnchorElement>) => void;
   onDrop: (e: React.DragEvent<HTMLAnchorElement>) => void;
@@ -551,45 +663,318 @@ const ActionIcon = ({
     isDragOver ? classes.actionItemDragOver : '',
   ].filter(Boolean).join(' ');
 
+  const cellCls = [
+    classes.iconCell,
+    isEditMode && !isDragging ? classes.iconCellWiggle : '',
+  ].filter(Boolean).join(' ');
+
   return (
-    <Tooltip
-      title={
-        <Box>
-          <Typography style={{ fontWeight: 700, fontSize: '0.8rem' }}>
-            {tool.title}
-          </Typography>
-          <Typography style={{ fontSize: '0.73rem', opacity: 0.88, marginTop: 2 }}>
-            {tool.description}
-          </Typography>
-        </Box>
-      }
-      placement="top"
-      arrow
-      disableFocusListener={isDragging}
-      disableHoverListener={isDragging}
-    >
-      <a
-        className={cls}
-        href={tool.url}
-        target={tool.external ? '_blank' : '_self'}
-        rel={tool.external ? 'noopener noreferrer' : undefined}
-        draggable
-        onDragStart={onDragStart}
-        onDragOver={onDragOver}
-        onDrop={onDrop}
-        onDragEnd={onDragEnd}
+    <div className={cellCls} style={{ animationDelay: `${editDelay}s` }}>
+      <Tooltip
+        title={
+          isEditMode ? '' : (
+            <Box>
+              <Typography style={{ fontWeight: 700, fontSize: '0.8rem' }}>{tool.title}</Typography>
+              <Typography style={{ fontSize: '0.73rem', opacity: 0.88, marginTop: 2 }}>{tool.description}</Typography>
+            </Box>
+          )
+        }
+        placement="top"
+        arrow
+        disableFocusListener={isDragging || isEditMode}
+        disableHoverListener={isDragging || isEditMode}
       >
-        <Box
-          className={classes.actionIconWrap}
-          style={{ backgroundColor: tool.bgColor }}
+        <a
+          className={cls}
+          href={tool.url}
+          target={tool.external ? '_blank' : '_self'}
+          rel={tool.external ? 'noopener noreferrer' : undefined}
+          draggable
+          onDragStart={onDragStart}
+          onDragOver={onDragOver}
+          onDrop={onDrop}
+          onDragEnd={onDragEnd}
         >
-          <Box style={{ color: tool.iconColor, display: 'flex' }}>
-            {tool.icon}
+          <Box className={classes.actionIconWrap} style={{ backgroundColor: tool.bgColor }}>
+            <Box style={{ color: tool.iconColor, display: 'flex' }}>{tool.icon}</Box>
           </Box>
+          <Typography className={classes.actionLabel}>{tool.title}</Typography>
+        </a>
+      </Tooltip>
+      {isEditMode && (
+        <div
+          className={classes.editBadge}
+          role="button"
+          tabIndex={0}
+          aria-label="remover"
+          onClick={e => { e.preventDefault(); e.stopPropagation(); onRemove?.(); }}
+          onKeyDown={e => { if (e.key === 'Enter') onRemove?.(); }}
+        >
+          <CloseIcon />
+        </div>
+      )}
+    </div>
+  );
+};
+
+// --- Group folder tile ---
+
+const GroupFolder = ({
+  group,
+  isDragOver,
+  isEditMode = false,
+  editDelay = 0,
+  onRemove,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  onDragEnd,
+  onClick,
+}: {
+  group: ToolGroup;
+  isDragOver: boolean;
+  isEditMode?: boolean;
+  editDelay?: number;
+  onRemove?: () => void;
+  onDragStart: (e: React.DragEvent<HTMLDivElement>) => void;
+  onDragOver: (e: React.DragEvent<HTMLDivElement>) => void;
+  onDrop: (e: React.DragEvent<HTMLDivElement>) => void;
+  onDragEnd: () => void;
+  onClick: () => void;
+}) => {
+  const classes = useStyles();
+  const preview = group.items
+    .slice(0, 4)
+    .map(id => TOOL_REGISTRY.find(t => t.id === id))
+    .filter((t): t is ToolDef => !!t);
+
+  const cellCls = [
+    classes.iconCell,
+    isEditMode ? classes.iconCellWiggle : '',
+  ].filter(Boolean).join(' ');
+
+  return (
+    <div className={cellCls} style={{ animationDelay: `${editDelay}s` }}>
+      <Tooltip
+        title={
+          isEditMode ? '' : (
+            <Box>
+              <Typography style={{ fontWeight: 700, fontSize: '0.8rem' }}>{group.name}</Typography>
+              <Typography style={{ fontSize: '0.73rem', opacity: 0.88, marginTop: 2 }}>
+                {group.items.length} {group.items.length === 1 ? 'ação' : 'ações'}
+              </Typography>
+            </Box>
+          )
+        }
+        placement="top"
+        arrow
+        disableHoverListener={isEditMode}
+      >
+        <div
+          className={`${classes.actionItem} ${isDragOver ? classes.actionItemDragOver : ''}`}
+          style={{ cursor: isEditMode ? 'grab' : 'pointer' }}
+          draggable
+          onDragStart={onDragStart}
+          onDragOver={onDragOver}
+          onDrop={onDrop}
+          onDragEnd={onDragEnd}
+          onClick={onClick}
+          role="button"
+          tabIndex={0}
+          onKeyDown={e => { if (e.key === 'Enter') onClick(); }}
+        >
+          <Box className={classes.folderIconWrap}>
+            {preview.length === 0 ? (
+              <FolderIcon style={{ fontSize: 28, color: '#90a4ae', gridColumn: '1 / span 2', gridRow: '1 / span 2', alignSelf: 'center', justifySelf: 'center' }} />
+            ) : (
+              Array.from({ length: 4 }).map((_, i) => {
+                const t = preview[i];
+                return (
+                  <Box
+                    key={i}
+                    className={classes.folderMiniIcon}
+                    style={{ backgroundColor: t ? t.bgColor : 'transparent' }}
+                  >
+                    {t && <Box style={{ color: t.iconColor, display: 'flex' }}>{t.icon}</Box>}
+                  </Box>
+                );
+              })
+            )}
+          </Box>
+          <Typography className={classes.actionLabel}>{group.name}</Typography>
+        </div>
+      </Tooltip>
+      {isEditMode && (
+        <div
+          className={classes.editBadge}
+          role="button"
+          tabIndex={0}
+          aria-label="excluir grupo"
+          onClick={e => { e.stopPropagation(); onRemove?.(); }}
+          onKeyDown={e => { if (e.key === 'Enter') onRemove?.(); }}
+        >
+          <CloseIcon />
+        </div>
+      )}
+    </div>
+  );
+};
+
+// --- Group detail dialog ---
+
+const GroupDialog = ({
+  group,
+  open,
+  onClose,
+  onSave,
+  onDelete,
+}: {
+  group: ToolGroup;
+  open: boolean;
+  onClose: () => void;
+  onSave: (updated: ToolGroup) => void;
+  onDelete: () => void;
+}) => {
+  const classes = useStyles();
+  const [name, setName] = useState(group.name);
+  const [items, setItems] = useState<ToolId[]>(group.items);
+  const [localDragId, setLocalDragId] = useState<ToolId | null>(null);
+  const [localDragOverId, setLocalDragOverId] = useState<ToolId | null>(null);
+
+  // sync when group prop changes (e.g. item added externally)
+  useEffect(() => { setName(group.name); setItems(group.items); }, [group]);
+
+  const commit = () => onSave({ ...group, name: name.trim() || group.name, items });
+
+  const removeItem = (id: ToolId) => setItems(prev => prev.filter(t => t !== id));
+
+  const lDragStart = (e: React.DragEvent, id: ToolId) => {
+    e.dataTransfer.setData('text/plain', id);
+    e.dataTransfer.effectAllowed = 'move';
+    setLocalDragId(id);
+  };
+  const lDragOver = (e: React.DragEvent, id: ToolId) => {
+    e.preventDefault();
+    if (id !== localDragId) setLocalDragOverId(id);
+  };
+  const lDrop = (e: React.DragEvent, targetId: ToolId) => {
+    e.preventDefault();
+    if (!localDragId || localDragId === targetId) { setLocalDragId(null); setLocalDragOverId(null); return; }
+    setItems(prev => {
+      const from = prev.indexOf(localDragId);
+      const to = prev.indexOf(targetId);
+      if (from === -1 || to === -1) return prev;
+      const next = [...prev];
+      next.splice(from, 1);
+      next.splice(to, 0, localDragId);
+      return next;
+    });
+    setLocalDragId(null);
+    setLocalDragOverId(null);
+  };
+  const lDragEnd = () => { setLocalDragId(null); setLocalDragOverId(null); };
+
+  return (
+    <Dialog open={open} onClose={() => { commit(); onClose(); }} maxWidth="xs" fullWidth>
+      <DialogTitle>
+        <Box style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <FolderIcon color="action" fontSize="small" />
+          <Box flex={1}>
+            <TextField
+              value={name}
+              onChange={e => setName(e.target.value)}
+              fullWidth
+              variant="standard"
+              InputProps={{ disableUnderline: false, style: { fontWeight: 700, fontSize: '1.1rem' } }}
+              inputProps={{ 'aria-label': 'nome do grupo' }}
+            />
+          </Box>
+          <IconButton size="small" onClick={() => { commit(); onClose(); }}>
+            <CloseIcon fontSize="small" />
+          </IconButton>
         </Box>
-        <Typography className={classes.actionLabel}>{tool.title}</Typography>
-      </a>
-    </Tooltip>
+      </DialogTitle>
+      <DialogContent dividers>
+        <Typography variant="caption" color="textSecondary" style={{ display: 'block', marginBottom: 12 }}>
+          Arraste para reordenar · clique em × para remover do grupo
+        </Typography>
+        {items.length === 0 ? (
+          <Typography variant="body2" color="textSecondary" align="center" style={{ padding: '24px 0' }}>
+            Grupo vazio. Arraste ações rápidas para cá.
+          </Typography>
+        ) : (
+          <Box className={classes.actionsGrid}>
+            {items.map(id => {
+              const tool = TOOL_REGISTRY.find(t => t.id === id);
+              if (!tool) return null;
+              return (
+                <Box key={id} className={classes.groupItemWrap}>
+                  <ActionIcon
+                    tool={tool}
+                    isDragging={localDragId === id}
+                    isDragOver={localDragOverId === id}
+                    onDragStart={e => lDragStart(e, id)}
+                    onDragOver={e => lDragOver(e, id)}
+                    onDrop={e => lDrop(e, id)}
+                    onDragEnd={lDragEnd}
+                  />
+                  <IconButton className={classes.groupRemoveBtn} size="small" onClick={() => removeItem(id)}>
+                    <CloseIcon />
+                  </IconButton>
+                </Box>
+              );
+            })}
+          </Box>
+        )}
+      </DialogContent>
+      <DialogActions>
+        <Button size="small" style={{ color: '#c62828' }} onClick={onDelete}>
+          Excluir grupo
+        </Button>
+        <Box flex={1} />
+        <Button size="small" onClick={() => { commit(); onClose(); }} variant="contained" color="primary">
+          Salvar
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+};
+
+// --- Create group dialog ---
+
+const CreateGroupDialog = ({
+  open,
+  onClose,
+  onCreate,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onCreate: (name: string) => void;
+}) => {
+  const [name, setName] = useState('');
+  const submit = () => { if (name.trim()) { onCreate(name.trim()); setName(''); } };
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
+      <DialogTitle>Criar grupo</DialogTitle>
+      <DialogContent>
+        <TextField
+          autoFocus
+          label="Nome do grupo"
+          value={name}
+          onChange={e => setName(e.target.value)}
+          fullWidth
+          variant="outlined"
+          size="small"
+          onKeyDown={e => { if (e.key === 'Enter') submit(); }}
+        />
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Cancelar</Button>
+        <Button onClick={submit} variant="contained" color="primary" disabled={!name.trim()}>
+          Criar
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 };
 
@@ -734,10 +1119,13 @@ export const HomePage = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [widgetDialogOpen, setWidgetDialogOpen] = useState(false);
   const [toolDialogOpen, setToolDialogOpen] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [createGroupOpen, setCreateGroupOpen] = useState(false);
+  const [openGroupId, setOpenGroupId] = useState<string | null>(null);
   const [enabledWidgets, setEnabledWidgets] = useState<WidgetId[]>(loadWidgets);
-  const [enabledTools, setEnabledTools] = useState<ToolId[]>(loadTools);
-  const [dragId, setDragId] = useState<ToolId | null>(null);
-  const [dragOverId, setDragOverId] = useState<ToolId | null>(null);
+  const [layout, setLayout] = useState<ToolLayout>(loadLayout);
+  const [dragId, setDragId] = useState<string | null>(null);   // ToolId or 'group:<id>'
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
 
   useEffect(() => {
     identityApi.getProfileInfo().then(({ displayName: name }) => {
@@ -758,44 +1146,135 @@ export const HomePage = () => {
     saveWidgets(DEFAULT_WIDGETS);
   };
 
+  const updateLayout = (next: ToolLayout) => { setLayout(next); saveLayout(next); };
+
   const toggleTool = (id: ToolId) => {
-    setEnabledTools(prev => {
-      const next = prev.includes(id) ? prev.filter(t => t !== id) : [...prev, id];
-      saveTools(next);
+    setLayout(prev => {
+      const all = allLayoutTools(prev);
+      let next: ToolLayout;
+      if (all.includes(id)) {
+        next = {
+          ungrouped: prev.ungrouped.filter(t => t !== id),
+          groups: prev.groups.map(g => ({ ...g, items: g.items.filter(t => t !== id) })),
+        };
+      } else {
+        next = { ...prev, ungrouped: [...prev.ungrouped, id] };
+      }
+      saveLayout(next);
       return next;
     });
   };
 
-  const resetTools = () => {
-    setEnabledTools(DEFAULT_TOOLS);
-    saveTools(DEFAULT_TOOLS);
+  const resetTools = () => updateLayout(DEFAULT_LAYOUT);
+
+  const createGroup = (name: string) => {
+    const next: ToolLayout = {
+      ...layout,
+      groups: [...layout.groups, { id: generateGroupId(), name, items: [] }],
+    };
+    updateLayout(next);
+    setCreateGroupOpen(false);
   };
 
-  const handleDragStart = (e: React.DragEvent, id: ToolId) => {
+  const saveGroup = (updated: ToolGroup) => {
+    const next: ToolLayout = {
+      ...layout,
+      groups: layout.groups.map(g => g.id === updated.id ? updated : g),
+    };
+    updateLayout(next);
+  };
+
+  const deleteGroup = (groupId: string) => {
+    const group = layout.groups.find(g => g.id === groupId);
+    const next: ToolLayout = {
+      ungrouped: [...layout.ungrouped, ...(group?.items ?? [])],
+      groups: layout.groups.filter(g => g.id !== groupId),
+    };
+    updateLayout(next);
+    setOpenGroupId(null);
+  };
+
+  // Drag & drop ─────────────────────────────────────────────────────────────
+  const handleDragStart = (e: React.DragEvent, id: string) => {
     e.dataTransfer.setData('text/plain', id);
     e.dataTransfer.effectAllowed = 'move';
     setDragId(id);
   };
 
-  const handleDragOver = (e: React.DragEvent, id: ToolId) => {
+  const handleDragOver = (e: React.DragEvent, id: string) => {
     e.preventDefault();
+    const isFullGroup = id.startsWith('group:') &&
+      layout.groups.find(g => g.id === id.slice(6))?.items.length === 4;
+    if (isFullGroup) {
+      e.dataTransfer.dropEffect = 'none';
+      setDragOverId(null);
+      return;
+    }
     e.dataTransfer.dropEffect = 'move';
     if (id !== dragId) setDragOverId(id);
   };
 
-  const handleDrop = (e: React.DragEvent, targetId: ToolId) => {
+  const handleDrop = (e: React.DragEvent, targetId: string) => {
     e.preventDefault();
-    if (!dragId || dragId === targetId) { setDragId(null); setDragOverId(null); return; }
-    setEnabledTools(prev => {
-      const from = prev.indexOf(dragId);
-      const to = prev.indexOf(targetId);
-      if (from === -1 || to === -1) return prev;
-      const next = [...prev];
-      next.splice(from, 1);
-      next.splice(to, 0, dragId);
-      saveTools(next);
+    const srcId = dragId;
+    if (!srcId || srcId === targetId) { setDragId(null); setDragOverId(null); return; }
+
+    const dragIsGroup = srcId.startsWith('group:');
+    const targetIsGroup = targetId.startsWith('group:');
+    let newGroupToOpen: string | null = null;
+
+    setLayout(prev => {
+      const next: ToolLayout = {
+        ungrouped: [...prev.ungrouped],
+        groups: prev.groups.map(g => ({ ...g, items: [...g.items] })),
+      };
+
+      if (!dragIsGroup && targetIsGroup) {
+        // Drag tool → folder: add to group (max 4 items)
+        const gId = targetId.slice(6);
+        const targetGroup = next.groups.find(g => g.id === gId);
+        if (!targetGroup || targetGroup.items.length >= 4) return prev;
+        next.ungrouped = next.ungrouped.filter(t => t !== srcId);
+        next.groups = next.groups.map(g =>
+          g.id === gId && !g.items.includes(srcId as ToolId)
+            ? { ...g, items: [...g.items, srcId as ToolId] }
+            : g,
+        );
+      } else if (!dragIsGroup && !targetIsGroup) {
+        if (isEditMode) {
+          // Edit mode: drag icon onto icon → create group with both
+          const gId = generateGroupId();
+          newGroupToOpen = gId;
+          next.ungrouped = next.ungrouped.filter(t => t !== srcId && t !== targetId);
+          next.groups = [...next.groups, {
+            id: gId,
+            name: 'Novo Grupo',
+            items: [srcId as ToolId, targetId as ToolId],
+          }];
+        } else {
+          // Normal mode: reorder ungrouped
+          const from = next.ungrouped.indexOf(srcId as ToolId);
+          const to   = next.ungrouped.indexOf(targetId as ToolId);
+          if (from !== -1 && to !== -1) {
+            next.ungrouped.splice(from, 1);
+            next.ungrouped.splice(to, 0, srcId as ToolId);
+          }
+        }
+      } else if (dragIsGroup && targetIsGroup) {
+        // Reorder groups
+        const from = next.groups.findIndex(g => g.id === srcId.slice(6));
+        const to   = next.groups.findIndex(g => g.id === targetId.slice(6));
+        if (from !== -1 && to !== -1) {
+          const [moved] = next.groups.splice(from, 1);
+          next.groups.splice(to, 0, moved);
+        }
+      }
+
+      saveLayout(next);
       return next;
     });
+
+    if (newGroupToOpen) setOpenGroupId(newGroupToOpen);
     setDragId(null);
     setDragOverId(null);
   };
@@ -804,10 +1283,10 @@ export const HomePage = () => {
 
   const on = (id: WidgetId) => enabledWidgets.includes(id);
 
-  // preserve drag-reordered sequence
-  const activeTools = enabledTools
+  const activeTools = layout.ungrouped
     .map(id => TOOL_REGISTRY.find(t => t.id === id))
-    .filter((t): t is ToolDef => t !== undefined);
+    .filter((t): t is ToolDef => !!t);
+  const allEnabled = allLayoutTools(layout);
   const activityActive = [on('top-visited'), on('recently-visited')].filter(Boolean).length;
   const hasWorkspace = on('starred-entities') || on('random-joke') || on('catalog-stats');
 
@@ -862,7 +1341,8 @@ export const HomePage = () => {
         <Box className={classes.customizeBar}>
           <Typography variant="caption" color="textSecondary">
             {enabledWidgets.length}/{WIDGET_REGISTRY.length} widgets &nbsp;·&nbsp;{' '}
-            {enabledTools.length}/{TOOL_REGISTRY.length} ações ativas
+            {allEnabled.length}/{TOOL_REGISTRY.length} ações &nbsp;·&nbsp;{' '}
+            {layout.groups.length} {layout.groups.length === 1 ? 'grupo' : 'grupos'}
           </Typography>
           <Button
             size="small"
@@ -885,22 +1365,68 @@ export const HomePage = () => {
         <ToolDialog
           open={toolDialogOpen}
           onClose={() => setToolDialogOpen(false)}
-          enabled={enabledTools}
+          enabled={allEnabled}
           onToggle={toggleTool}
           onReset={resetTools}
         />
+
+        <CreateGroupDialog
+          open={createGroupOpen}
+          onClose={() => setCreateGroupOpen(false)}
+          onCreate={createGroup}
+        />
+
+        {openGroupId && (() => {
+          const grp = layout.groups.find(g => g.id === openGroupId);
+          return grp ? (
+            <GroupDialog
+              group={grp}
+              open
+              onClose={() => setOpenGroupId(null)}
+              onSave={saveGroup}
+              onDelete={() => deleteGroup(openGroupId)}
+            />
+          ) : null;
+        })()}
 
         {/* Ações Rápidas */}
         <SectionHeader
           title="Ações Rápidas"
           action={
-            <IconButton
-              size="small"
-              onClick={() => setToolDialogOpen(true)}
-              title="Personalizar ações rápidas"
-            >
-              <TuneIcon fontSize="small" />
-            </IconButton>
+            isEditMode ? (
+              <Box style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Tooltip title="Criar grupo" arrow>
+                  <IconButton size="small" onClick={() => setCreateGroupOpen(true)}>
+                    <CreateNewFolderIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="Personalizar ações" arrow>
+                  <IconButton size="small" onClick={() => setToolDialogOpen(true)}>
+                    <TuneIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+                <Button
+                  size="small"
+                  variant="contained"
+                  color="primary"
+                  onClick={() => setIsEditMode(false)}
+                  style={{ fontWeight: 700, minWidth: 0 }}
+                >
+                  Concluído
+                </Button>
+              </Box>
+            ) : (
+              <Box style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                <Tooltip title="Personalizar ações" arrow>
+                  <IconButton size="small" onClick={() => setToolDialogOpen(true)}>
+                    <TuneIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+                <Button size="small" onClick={() => setIsEditMode(true)}>
+                  Editar
+                </Button>
+              </Box>
+            )
           }
         />
         <Box
@@ -908,16 +1434,34 @@ export const HomePage = () => {
           onDragOver={e => e.preventDefault()}
           onDrop={() => { setDragId(null); setDragOverId(null); }}
         >
-          {activeTools.map(tool => (
+          {activeTools.map((tool, idx) => (
             <ActionIcon
               key={tool.id}
               tool={tool}
               isDragging={dragId === tool.id}
               isDragOver={dragOverId === tool.id}
+              isEditMode={isEditMode}
+              editDelay={idx * 0.04}
+              onRemove={() => toggleTool(tool.id)}
               onDragStart={e => handleDragStart(e, tool.id)}
               onDragOver={e => handleDragOver(e, tool.id)}
               onDrop={e => handleDrop(e, tool.id)}
               onDragEnd={handleDragEnd}
+            />
+          ))}
+          {layout.groups.map((group, idx) => (
+            <GroupFolder
+              key={group.id}
+              group={group}
+              isDragOver={dragOverId === `group:${group.id}`}
+              isEditMode={isEditMode}
+              editDelay={(activeTools.length + idx) * 0.04}
+              onRemove={() => deleteGroup(group.id)}
+              onDragStart={e => handleDragStart(e, `group:${group.id}`)}
+              onDragOver={e => handleDragOver(e, `group:${group.id}`)}
+              onDrop={e => handleDrop(e, `group:${group.id}`)}
+              onDragEnd={handleDragEnd}
+              onClick={() => setOpenGroupId(group.id)}
             />
           ))}
         </Box>
