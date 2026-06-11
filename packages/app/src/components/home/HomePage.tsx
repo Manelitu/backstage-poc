@@ -6,7 +6,6 @@ import Card from '@material-ui/core/Card';
 import Checkbox from '@material-ui/core/Checkbox';
 import TextField from '@material-ui/core/TextField';
 import Tooltip from '@material-ui/core/Tooltip';
-import CreateNewFolderIcon from '@material-ui/icons/CreateNewFolder';
 import FolderIcon from '@material-ui/icons/Folder';
 import Dialog from '@material-ui/core/Dialog';
 import DialogActions from '@material-ui/core/DialogActions';
@@ -474,6 +473,43 @@ const useStyles = makeStyles(theme => ({
     gap: theme.spacing(1.5),
     padding: theme.spacing(0.5, 0, 1),
   },
+  addGroupCell: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: theme.spacing(0.75),
+    cursor: 'pointer',
+    width: 90,
+    padding: theme.spacing(1, 0.5),
+    borderRadius: theme.shape.borderRadius * 2,
+    transition: 'background-color 0.15s',
+    userSelect: 'none',
+    background: 'none',
+    border: 'none',
+    '&:hover': { backgroundColor: theme.palette.action.hover },
+    '&:hover $addGroupIcon': {
+      borderColor: theme.palette.primary.main,
+      '& .MuiSvgIcon-root': { color: theme.palette.primary.main },
+    },
+  },
+  addGroupIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 16,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    border: `2px dashed ${theme.palette.divider}`,
+    transition: 'border-color 0.15s',
+    '& .MuiSvgIcon-root': { fontSize: '1.6rem', color: theme.palette.text.disabled, transition: 'color 0.15s' },
+  },
+  addGroupLabel: {
+    fontSize: '0.72rem',
+    fontWeight: 600,
+    textAlign: 'center',
+    color: theme.palette.text.secondary,
+    maxWidth: 84,
+  },
   actionItem: {
     display: 'flex',
     flexDirection: 'column',
@@ -540,12 +576,12 @@ const useStyles = makeStyles(theme => ({
     transition: 'box-shadow 0.15s',
   },
   folderMiniIcon: {
-    borderRadius: 6,
+    borderRadius: 5,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
-    '& .MuiSvgIcon-root': { fontSize: '0.78rem' },
+    '& .MuiSvgIcon-root': { fontSize: '0.5rem' },
   },
   groupItemWrap: {
     position: 'relative' as const,
@@ -793,9 +829,9 @@ const GroupFolder = ({
                   <Box
                     key={i}
                     className={classes.folderMiniIcon}
-                    style={{ backgroundColor: t ? t.bgColor : 'transparent' }}
+                    style={{ backgroundColor: t ? t.bgColor : 'rgba(255,255,255,0.12)' }}
                   >
-                    {t && <Box style={{ color: t.iconColor, display: 'flex' }}>{t.icon}</Box>}
+                    {t && <Box style={{ color: t.iconColor, display: 'flex', lineHeight: 0 }}>{t.icon}</Box>}
                   </Box>
                 );
               })
@@ -952,7 +988,7 @@ const CreateGroupDialog = ({
   onCreate: (name: string) => void;
 }) => {
   const [name, setName] = useState('');
-  const submit = () => { if (name.trim()) { onCreate(name.trim()); setName(''); } };
+  const submit = () => { if (name.trim()) { onCreate(name.trim()); setName(''); onClose(); } };
   return (
     <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
       <DialogTitle>Criar grupo</DialogTitle>
@@ -1395,11 +1431,6 @@ export const HomePage = () => {
           action={
             isEditMode ? (
               <Box style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Tooltip title="Criar grupo" arrow>
-                  <IconButton size="small" onClick={() => setCreateGroupOpen(true)}>
-                    <CreateNewFolderIcon fontSize="small" />
-                  </IconButton>
-                </Tooltip>
                 <Tooltip title="Personalizar ações" arrow>
                   <IconButton size="small" onClick={() => setToolDialogOpen(true)}>
                     <TuneIcon fontSize="small" />
@@ -1464,6 +1495,17 @@ export const HomePage = () => {
               onClick={() => setOpenGroupId(group.id)}
             />
           ))}
+          <Tooltip title="Criar novo grupo" arrow placement="top">
+            <button
+              className={classes.addGroupCell}
+              onClick={() => setCreateGroupOpen(true)}
+            >
+              <Box className={classes.addGroupIcon}>
+                <AddIcon />
+              </Box>
+              <Typography className={classes.addGroupLabel}>Novo Grupo</Typography>
+            </button>
+          </Tooltip>
         </Box>
 
         {/* Meu Espaço */}
