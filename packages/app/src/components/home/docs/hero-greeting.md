@@ -92,7 +92,7 @@ hero: {
   borderRadius: theme.shape.borderRadius * 3,
   padding: theme.spacing(5, 4, 4),
   marginBottom: theme.spacing(3),
-  boxShadow: theme.shadows[4],
+  boxShadow: theme.shadows[2],
   // Círculo decorativo superior direito
   '&::before': {
     content: '""',

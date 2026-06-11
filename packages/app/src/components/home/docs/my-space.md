@@ -8,11 +8,13 @@
 ## O que faz
 
 Agrupa widgets do tipo "espaço pessoal" em uma seção com layout responsivo:
-- **Favoritos** (`HomePageStarredEntities`): lista de entidades favoritadas pelo usuário
+- **Favoritos** (`StarredEntitiesWidget`): lista customizada de entidades favoritadas com accent bar colorida, chips de kind/type e botão de desfavoritar
 - **Visão do Catálogo** (`CatalogStatsWidget`): contagem de entidades por tipo com links
 - **Piada Aleatória** (`HomePageRandomJoke`): piada de programação aleatória
 
 Cada widget é opcional e controlado pelo sistema de widgets. A seção inteira some se nenhum dos três estiver ativo.
+
+> **`HomePageStarredEntities` foi substituído** pelo `StarredEntitiesWidget` customizado (arquivo `StarredEntitiesWidget.tsx`). O componente do `@backstage/plugin-home` foi descartado pois não permitia o nível de customização visual necessário. Ver detalhes em [starred-entities.md](./starred-entities.md).
 
 ---
 
@@ -20,7 +22,8 @@ Cada widget é opcional e controlado pelo sistema de widgets. A seção inteira 
 
 | Pacote | Uso |
 |---|---|
-| `@backstage/plugin-home` | `HomePageStarredEntities`, `HomePageRandomJoke` |
+| `@backstage/plugin-home` | `HomePageRandomJoke` |
+| `./StarredEntitiesWidget` | Widget customizado de entidades favoritas (substitui `HomePageStarredEntities`) |
 | `./CatalogStatsWidget` | Widget customizado de estatísticas do catálogo |
 | `@material-ui/core` | `Grid`, `Box` |
 
@@ -49,7 +52,7 @@ Se `hasWorkspace === false`, a seção inteira (incluindo o `SectionHeader`) nã
       {on('starred-entities') && (
         <Grid item xs={12} style={{ display: 'flex' }}>
           <Box className={classes.cardWrap} style={{ minHeight: 300 }}>
-            <HomePageStarredEntities title="Suas Entidades Favoritas" />
+            <StarredEntitiesWidget />
           </Box>
         </Grid>
       )}
@@ -105,6 +108,7 @@ cardWrap: {
     display: 'flex',
     flexDirection: 'column',
     overflow: 'hidden',
+    boxShadow: theme.shadows[1],  // sombra leve uniforme em todos os cards
   },
   '& .MuiCardContent-root': {
     flex: '1 1 0%',
@@ -118,15 +122,17 @@ Este wrapper força o card a preencher a altura disponível no Grid (`alignItems
 
 ---
 
-## `HomePageStarredEntities`
+## `StarredEntitiesWidget`
 
-Componente do `@backstage/plugin-home`. Exibe entidades favoritadas (estrela) pelo usuário no catálogo. Requer o plugin `@backstage/plugin-home` instalado e configurado.
-
-Customização aplicada: apenas o `title` é passado como prop:
+Componente **customizado** em `packages/app/src/components/home/StarredEntitiesWidget.tsx`. Substitui o `HomePageStarredEntities` do plugin-home por uma implementação própria com maior controle visual.
 
 ```tsx
-<HomePageStarredEntities title="Suas Entidades Favoritas" />
+import { StarredEntitiesWidget } from './StarredEntitiesWidget';
+// Sem props — título e lógica são internos ao componente
+<StarredEntitiesWidget />
 ```
+
+Documentação completa em [starred-entities.md](./starred-entities.md).
 
 ---
 

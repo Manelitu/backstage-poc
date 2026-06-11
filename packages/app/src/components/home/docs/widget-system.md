@@ -139,27 +139,87 @@ const resetWidgets = () => {
 
 ## Barra de personalização (CustomizeBar)
 
-Exibida sempre no topo das seções, resume o estado atual e abre os dialogs:
+Exibida sempre entre a barra de busca e a seção "Ações Rápidas". Resume o estado atual com pills coloridos e abre o dialog de widgets via ícone. **Não possui fundo/card** — os elementos flutuam diretamente na página.
+
+### Estilos
+
+```ts
+customizeBar: {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  marginBottom: theme.spacing(3),
+  padding: theme.spacing(0, 0.5),
+  // sem background, border ou boxShadow — sem card
+},
+statPill: {
+  display: 'inline-flex',
+  alignItems: 'baseline',
+  gap: 5,
+  borderRadius: 20,
+  padding: '3px 10px',
+  border: '1px solid transparent',
+},
+statNum:  { fontWeight: 800, fontSize: '0.8rem', lineHeight: 1.5 },
+statUnit: { fontSize: '0.69rem', color: theme.palette.text.secondary, fontWeight: 500 },
+statSep:  { color: theme.palette.divider, userSelect: 'none', fontSize: '1rem', lineHeight: 1, alignSelf: 'center' },
+```
+
+### JSX
 
 ```tsx
 <Box className={classes.customizeBar}>
-  <Typography variant="caption" color="textSecondary">
-    {enabledWidgets.length}/{WIDGET_REGISTRY.length} widgets &nbsp;·&nbsp;
-    {allEnabled.length}/{TOOL_REGISTRY.length} ações &nbsp;·&nbsp;
-    {layout.groups.length} {layout.groups.length === 1 ? 'grupo' : 'grupos'}
-  </Typography>
-  <Button
-    size="small"
-    startIcon={<AddIcon />}
-    variant="outlined"
-    onClick={() => setWidgetDialogOpen(true)}
-  >
-    Adicionar widget
-  </Button>
+  <Box style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+
+    {/* Pill azul: X/Y widgets ativos */}
+    <Box className={classes.statPill}
+      style={{ backgroundColor: 'rgba(2,119,189,0.07)', borderColor: 'rgba(2,119,189,0.18)' }}>
+      <Typography className={classes.statNum} style={{ color: '#0277bd' }}>
+        {enabledWidgets.length}/{WIDGET_REGISTRY.length}
+      </Typography>
+      <Typography className={classes.statUnit}>widgets</Typography>
+    </Box>
+
+    <Typography className={classes.statSep}>·</Typography>
+
+    {/* Pill verde: X/Y ações ativas */}
+    <Box className={classes.statPill}
+      style={{ backgroundColor: 'rgba(46,125,50,0.07)', borderColor: 'rgba(46,125,50,0.18)' }}>
+      <Typography className={classes.statNum} style={{ color: '#2e7d32' }}>
+        {allEnabled.length}/{TOOL_REGISTRY.length}
+      </Typography>
+      <Typography className={classes.statUnit}>ações</Typography>
+    </Box>
+
+    {/* Pill teal: grupos (só aparece se existirem grupos) */}
+    {layout.groups.length > 0 && (
+      <>
+        <Typography className={classes.statSep}>·</Typography>
+        <Box className={classes.statPill}
+          style={{ backgroundColor: 'rgba(0,105,92,0.07)', borderColor: 'rgba(0,105,92,0.18)' }}>
+          <Typography className={classes.statNum} style={{ color: '#00695c' }}>
+            {layout.groups.length}
+          </Typography>
+          <Typography className={classes.statUnit}>
+            {layout.groups.length === 1 ? 'grupo' : 'grupos'}
+          </Typography>
+        </Box>
+      </>
+    )}
+  </Box>
+
+  {/* Ícone de widgets — abre WidgetDialog */}
+  <Tooltip title="Gerenciar widgets" arrow>
+    <IconButton size="small" onClick={() => setWidgetDialogOpen(true)}>
+      <WidgetsIcon fontSize="small" />
+    </IconButton>
+  </Tooltip>
 </Box>
 ```
 
 `allEnabled` é derivado de `allLayoutTools(layout)` que une ferramentas soltas e ferramentas dentro de grupos.
+
+> **Por que sem card?** A barra de resumo é informação secundária — um card com fundo e borda competia visualmente com os cards de widgets abaixo. Sem card, os pills coloridos destacam os dados sem peso visual extra.
 
 ---
 
@@ -206,16 +266,15 @@ selectCard: {
   border: `2px solid ${theme.palette.divider}`,
   borderRadius: theme.shape.borderRadius * 2,
   cursor: 'pointer',
-  transition: 'border-color 0.15s, box-shadow 0.15s',
-  '&:hover': { boxShadow: theme.shadows[3] },
+  transition: 'border-color 0.15s',
+  // sem boxShadow: o feedback de hover é dado apenas pela borda colorida
 },
 selectCardActive: {
   border: `2px solid ${theme.palette.primary.main}`,
   borderRadius: theme.shape.borderRadius * 2,
   cursor: 'pointer',
   background: `${theme.palette.primary.main}08`,  // 8/255 ≈ 3% opacidade
-  transition: 'border-color 0.15s, box-shadow 0.15s',
-  '&:hover': { boxShadow: theme.shadows[3] },
+  transition: 'border-color 0.15s',
 },
 selectIconCircle: {
   width: 40, height: 40,

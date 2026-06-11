@@ -34,6 +34,7 @@ app:
 ```
 packages/app/src/components/home/
 ├── HomePage.tsx                  ← componente principal (saudação, busca, ações rápidas, meu espaço, atividade)
+├── StarredEntitiesWidget.tsx     ← widget customizado "Suas Entidades Favoritas"
 ├── TopVisitedChart.tsx           ← widget "Mais Visitados"
 ├── RecentlyVisitedTimeline.tsx   ← widget "Visitados Recentemente"
 ├── CatalogStatsWidget.tsx        ← widget "Visão do Catálogo"
@@ -44,6 +45,7 @@ packages/app/src/components/home/
     ├── widget-system.md
     ├── quick-actions.md
     ├── my-space.md
+    ├── starred-entities.md
     ├── catalog-stats.md
     ├── top-visited.md
     └── recently-visited.md
@@ -60,6 +62,7 @@ packages/app/src/components/home/
 | Sistema de widgets | [widget-system.md](./widget-system.md) | `HomePage.tsx` — `WidgetDialog`, `CustomizeBar` |
 | Ações Rápidas | [quick-actions.md](./quick-actions.md) | `HomePage.tsx` — `ActionIcon`, `GroupFolder`, dialogs |
 | Meu Espaço | [my-space.md](./my-space.md) | `HomePage.tsx` — seção `hasWorkspace` |
+| Entidades Favoritas | [starred-entities.md](./starred-entities.md) | `StarredEntitiesWidget.tsx` |
 | Visão do Catálogo | [catalog-stats.md](./catalog-stats.md) | `CatalogStatsWidget.tsx` |
 | Mais Visitados | [top-visited.md](./top-visited.md) | `TopVisitedChart.tsx` |
 | Visitados Recentemente | [recently-visited.md](./recently-visited.md) | `RecentlyVisitedTimeline.tsx` |
@@ -87,11 +90,34 @@ app:
 
 ---
 
+## Decisões de design transversais
+
+### Sombras (`boxShadow`)
+
+Todas as superfícies elevadas usam sombra padronizada via `theme.shadows`:
+
+| Elemento | Sombra |
+|---|---|
+| Hero card (saudação) | `theme.shadows[2]` — levemente mais pronunciado por ser o elemento principal |
+| Barra de busca em repouso | `theme.shadows[1]` |
+| Barra de busca com foco | `theme.shadows[3]` + `borderColor` primário |
+| Todos os InfoCards (via `cardWrap`) | `theme.shadows[1]` |
+| Barra de status (customizeBar) | **sem sombra** — flutuante, sem card |
+
+A padronização acontece no `cardWrap` com o seletor `'& .MuiCard-root, & .MuiPaper-root': { boxShadow: theme.shadows[1] }`, que aplica a todos os widgets filhos sem precisar editar cada componente individualmente.
+
+### Barra de status (customizeBar)
+
+Não tem card/fundo. Os pills coloridos (widgets / ações / grupos) são os únicos elementos visuais. O ícone `WidgetsIcon` à direita abre o dialog de personalização de widgets.
+
+---
+
 ## Ordem de implementação recomendada
 
 1. Instalar plugins (seção acima)
-2. Criar `CatalogStatsWidget.tsx`
-3. Criar `TopVisitedChart.tsx`
-4. Criar `RecentlyVisitedTimeline.tsx`
-5. Criar `HomePage.tsx` com todas as seções
-6. Registrar a rota no `app-config.yaml`
+2. Criar `StarredEntitiesWidget.tsx`
+3. Criar `CatalogStatsWidget.tsx`
+4. Criar `TopVisitedChart.tsx`
+5. Criar `RecentlyVisitedTimeline.tsx`
+6. Criar `HomePage.tsx` com todas as seções
+7. Registrar a rota no `app-config.yaml`

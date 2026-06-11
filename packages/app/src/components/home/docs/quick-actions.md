@@ -360,10 +360,10 @@ editBadge: {
   cursor: 'pointer',
   zIndex: 20,
   border: `2.5px solid ${theme.palette.background.paper}`,
-  boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
   transition: 'transform 0.1s',
   '&:hover': { transform: 'scale(1.2)' },
   '& svg': { fontSize: '0.6rem' },
+  // sem boxShadow
 },
 ```
 
@@ -489,10 +489,8 @@ actionIconWrap: {
   width: 64, height: 64,
   borderRadius: 16,
   display: 'flex', alignItems: 'center', justifyContent: 'center',
-  boxShadow: '0 2px 8px rgba(0,0,0,0.10)',
-  transition: 'box-shadow 0.15s',
   '& .MuiSvgIcon-root': { fontSize: '1.6rem' },
-  '$actionItem:hover &': { boxShadow: '0 4px 14px rgba(0,0,0,0.18)' },
+  // sem boxShadow — sombra padronizada globalmente via cardWrap
 },
 actionLabel: {
   fontSize: '0.72rem', fontWeight: 600,
@@ -556,8 +554,7 @@ folderIconWrap: {
   padding: 7,
   gap: 3,
   backgroundColor: theme.palette.action.selected,
-  boxShadow: '0 2px 8px rgba(0,0,0,0.10)',
-  transition: 'box-shadow 0.15s',
+  // sem boxShadow
 },
 folderMiniIcon: {
   borderRadius: 5,

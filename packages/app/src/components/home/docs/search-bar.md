@@ -11,7 +11,7 @@ Exibe uma barra de busca centralizada abaixo do hero, com:
 - Largura máxima de 820px, centralizada horizontalmente
 - Ícone de lupa no início do campo
 - Botão × para limpar o texto enquanto há conteúdo digitado
-- Fundo branco (papel) com sombra elevada ao receber foco
+- Fundo branco (papel) com sombra leve (`shadows[1]`) em repouso, sombra elevada (`shadows[3]`) e borda colorida ao receber foco
 - Submit navega para `/search?query=<termo>` via `window.location.href`
 - Bordas arredondadas (pill shape) e sem borda outline visível
 
@@ -95,10 +95,11 @@ searchInner: {
   maxWidth: 820,
   background: theme.palette.background.paper,
   borderRadius: theme.shape.borderRadius * 6,  // pill shape
-  boxShadow: theme.shadows[3],
-  transition: 'box-shadow 0.2s',
+  boxShadow: theme.shadows[1],
+  transition: 'border-color 0.2s, box-shadow 0.2s',
   '&:focus-within': {
-    boxShadow: theme.shadows[8],  // eleva sombra ao focar
+    boxShadow: theme.shadows[3],        // eleva sombra ao focar
+    borderColor: theme.palette.primary.main,  // destaca borda com cor primária
   },
   '& .MuiInputBase-root': {
     borderRadius: theme.shape.borderRadius * 6,
@@ -116,7 +117,9 @@ searchInner: {
 },
 ```
 
-> **`&:focus-within`**: pseudo-classe CSS nativa que aplica estilos quando qualquer filho do container recebe foco — usada aqui para elevar a sombra quando o campo de texto está ativo.
+> **`&:focus-within`**: pseudo-classe CSS nativa que aplica estilos quando qualquer filho do container recebe foco — usada aqui para elevar a sombra e adicionar borda colorida quando o campo de texto está ativo.
+
+> **Sombra em dois níveis**: `shadows[1]` em repouso mantém consistência visual com todos os outros cards da página; `shadows[3]` ao focar sinaliza interatividade sem sombra excessiva.
 
 ---
 
