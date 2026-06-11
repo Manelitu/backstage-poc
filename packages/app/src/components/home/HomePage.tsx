@@ -285,18 +285,50 @@ function saveTools(ids: ToolId[]) {
 
 const useStyles = makeStyles(theme => ({
   hero: {
+    position: 'relative',
+    overflow: 'hidden',
     background: `linear-gradient(135deg, ${theme.palette.primary.dark} 0%, ${theme.palette.primary.main} 100%)`,
     color: theme.palette.primary.contrastText,
     borderRadius: theme.shape.borderRadius * 3,
     padding: theme.spacing(5, 4, 4),
     marginBottom: theme.spacing(3),
+    boxShadow: theme.shadows[4],
+    '&::before': {
+      content: '""',
+      position: 'absolute',
+      top: -100,
+      right: -60,
+      width: 340,
+      height: 340,
+      borderRadius: '50%',
+      background: 'radial-gradient(circle, rgba(255,255,255,0.12) 0%, transparent 65%)',
+      pointerEvents: 'none',
+    },
+    '&::after': {
+      content: '""',
+      position: 'absolute',
+      bottom: -80,
+      left: -50,
+      width: 260,
+      height: 260,
+      borderRadius: '50%',
+      background: 'radial-gradient(circle, rgba(255,255,255,0.07) 0%, transparent 65%)',
+      pointerEvents: 'none',
+    },
   },
   heroGreeting: {
-    fontWeight: 300,
-    opacity: 0.85,
-    marginBottom: theme.spacing(0.5),
+    position: 'relative',
+    zIndex: 1,
+    fontWeight: 400,
+    fontSize: '0.8rem',
+    letterSpacing: '0.12em',
+    textTransform: 'uppercase',
+    opacity: 0.6,
+    marginBottom: theme.spacing(1),
   },
   heroName: {
+    position: 'relative',
+    zIndex: 1,
     fontWeight: 700,
     lineHeight: 1.1,
   },
@@ -686,11 +718,11 @@ export const HomePage = () => {
       <Content>
         {/* Hero */}
         <Box className={classes.hero}>
-          <Typography variant="h5" className={classes.heroGreeting}>
-            {getGreeting()}
+          <Typography className={classes.heroGreeting}>
+            {new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}
           </Typography>
           <Typography variant="h2" className={classes.heroName}>
-            {displayName || 'Bem-vindo de volta'}!
+            {getGreeting()}, {displayName?.split(' ')[0] || 'bem-vindo'}!
           </Typography>
         </Box>
 
