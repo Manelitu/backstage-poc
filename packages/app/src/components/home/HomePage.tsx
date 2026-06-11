@@ -3,8 +3,8 @@ import { makeStyles } from '@material-ui/core/styles';
 import Box from '@material-ui/core/Box';
 import Button from '@material-ui/core/Button';
 import Card from '@material-ui/core/Card';
-import CardActionArea from '@material-ui/core/CardActionArea';
 import Checkbox from '@material-ui/core/Checkbox';
+import Tooltip from '@material-ui/core/Tooltip';
 import Dialog from '@material-ui/core/Dialog';
 import DialogActions from '@material-ui/core/DialogActions';
 import DialogContent from '@material-ui/core/DialogContent';
@@ -402,40 +402,50 @@ const useStyles = makeStyles(theme => ({
       overflowY: 'auto',
     },
   },
-  toolCard: {
-    height: '100%',
-    borderRadius: theme.shape.borderRadius * 2,
-    border: `1px solid ${theme.palette.divider}`,
-    transition: 'box-shadow 0.2s, transform 0.2s',
-    '&:hover': {
-      boxShadow: theme.shadows[6],
-      transform: 'translateY(-2px)',
-    },
+  actionsGrid: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: theme.spacing(1.5),
+    padding: theme.spacing(0.5, 0, 1),
   },
-  toolCardArea: {
-    height: '100%',
-    padding: theme.spacing(2.5),
+  actionItem: {
     display: 'flex',
     flexDirection: 'column',
-    alignItems: 'flex-start',
-    gap: theme.spacing(1),
+    alignItems: 'center',
+    gap: theme.spacing(0.75),
+    textDecoration: 'none',
+    color: 'inherit',
+    width: 76,
+    padding: theme.spacing(1, 0.5),
+    borderRadius: theme.shape.borderRadius * 2,
+    transition: 'background-color 0.15s, transform 0.15s',
+    cursor: 'pointer',
+    '&:hover': {
+      backgroundColor: theme.palette.action.hover,
+      transform: 'translateY(-3px)',
+    },
   },
-  toolIconCircle: {
-    width: 52,
-    height: 52,
-    borderRadius: '50%',
+  actionIconWrap: {
+    width: 54,
+    height: 54,
+    borderRadius: 14,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: theme.spacing(0.5),
+    boxShadow: '0 2px 8px rgba(0,0,0,0.10)',
+    transition: 'box-shadow 0.15s',
+    '& .MuiSvgIcon-root': { fontSize: '1.4rem' },
+    '$actionItem:hover &': { boxShadow: '0 4px 14px rgba(0,0,0,0.18)' },
   },
-  toolLabel: {
-    fontWeight: 700,
-    lineHeight: 1.3,
-  },
-  toolDescription: {
-    color: theme.palette.text.secondary,
-    lineHeight: 1.4,
+  actionLabel: {
+    fontSize: '0.7rem',
+    fontWeight: 600,
+    textAlign: 'center',
+    lineHeight: 1.25,
+    maxWidth: 70,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
   },
   selectCard: {
     border: `2px solid ${theme.palette.divider}`,
@@ -501,33 +511,40 @@ const SectionHeader = ({
   );
 };
 
-const ToolCard = ({ tool }: { tool: ToolDef }) => {
+const ActionIcon = ({ tool }: { tool: ToolDef }) => {
   const classes = useStyles();
   return (
-    <Card className={classes.toolCard} elevation={0}>
-      <CardActionArea
-        className={classes.toolCardArea}
-        component="a"
+    <Tooltip
+      title={
+        <Box>
+          <Typography style={{ fontWeight: 700, fontSize: '0.8rem' }}>
+            {tool.title}
+          </Typography>
+          <Typography style={{ fontSize: '0.73rem', opacity: 0.88, marginTop: 2 }}>
+            {tool.description}
+          </Typography>
+        </Box>
+      }
+      placement="top"
+      arrow
+    >
+      <a
+        className={classes.actionItem}
         href={tool.url}
         target={tool.external ? '_blank' : '_self'}
         rel={tool.external ? 'noopener noreferrer' : undefined}
       >
         <Box
-          className={classes.toolIconCircle}
+          className={classes.actionIconWrap}
           style={{ backgroundColor: tool.bgColor }}
         >
           <Box style={{ color: tool.iconColor, display: 'flex' }}>
             {tool.icon}
           </Box>
         </Box>
-        <Typography variant="subtitle1" className={classes.toolLabel}>
-          {tool.title}
-        </Typography>
-        <Typography variant="body2" className={classes.toolDescription}>
-          {tool.description}
-        </Typography>
-      </CardActionArea>
-    </Card>
+        <Typography className={classes.actionLabel}>{tool.title}</Typography>
+      </a>
+    </Tooltip>
   );
 };
 
@@ -805,15 +822,11 @@ export const HomePage = () => {
             </IconButton>
           }
         />
-        <Grid container spacing={3} alignItems="stretch">
+        <Box className={classes.actionsGrid}>
           {activeTools.map(tool => (
-            <Grid key={tool.id} item xs={6} md={3} style={{ display: 'flex' }}>
-              <Box className={classes.cardWrap} style={{ minHeight: 180 }}>
-                <ToolCard tool={tool} />
-              </Box>
-            </Grid>
+            <ActionIcon key={tool.id} tool={tool} />
           ))}
-        </Grid>
+        </Box>
 
         {/* Meu Espaço */}
         {hasWorkspace && (
